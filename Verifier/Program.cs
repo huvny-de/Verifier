@@ -3,7 +3,6 @@ using System.Threading;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using Nethereum.Signer;
-using Nethereum.KeyStore;
 using EAGetMail;
 using System.Linq;
 
@@ -25,14 +24,10 @@ namespace Verifier
                 var email = program.GetRandomEmail();
                 var lastName = program.GenerateName(5);
                 var ethWallet = program.GenerateWallet();
-
                 var program2 = new Program();
                 var firstName = program2.GenerateName(5);
-
-
-                program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
+                var drivers = program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
                 //program.Verify(email, pass, gmailUrl);
-
                 try
                 {
                     MailServer oServer = new MailServer("imap.gmail.com",
@@ -57,7 +52,7 @@ namespace Verifier
                         if (oMail.From.ToString().Contains(targetMailFrom))
                         {
                             var url = program.GetVerifyLink(oMail.TextBody);
-                            program.VerifyLink(url);
+                            program.VerifyLink(url, drivers);
 
                         }
                         Console.WriteLine("To: {0}", oMail.To.ToString());
@@ -91,14 +86,13 @@ namespace Verifier
             return url;
         }
 
-        public void VerifyLink(string url)
+        public void VerifyLink(string url, IWebDriver driver)
         {
-            // var cOptions = new ChromeOptions();
-            // cOptions.BinaryLocation = @"C:\Users\neopi\Downloads\GoogleChromePortable\App\Chrome-bin\chrome.exe";
-            IWebDriver driver = new ChromeDriver();
+
             driver.Navigate().GoToUrl(url);
-            Thread.Sleep(20000);
-            //driver.Close();
+            Thread.Sleep(10000);
+            driver.Close();
+            Thread.Sleep(60000);
         }
 
         public string GetRandomEmail()
@@ -111,54 +105,68 @@ namespace Verifier
             {
                 stringChars[i] = chars[random.Next(chars.Length)];
             }
-
             var finalString = new String(stringChars);
             return finalString;
         }
 
-        public void InputEmail(string email, string targetUrl, string firstName, string lastName, string wallet)
+        public IWebDriver InputEmail(string email, string targetUrl, string firstName, string lastName, string wallet)
         {
             Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet}");
-            //var cOptions = new ChromeOptions
-            //{
-            //    BinaryLocation = @"C:\Users\neopi\Downloads\GoogleChromePortable\App\Chrome-bin\chrome.exe"
-            //};
+            //var cOptions = new ChromeOptions();
+            //cOptions.BinaryLocation = @"C:\Users\neopi\Downloads\GoogleChromePortable\App\Chrome-bin\chrome.exe";
             try
             {
-                IWebDriver driver = new ChromeDriver();
+                var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
+                var apiKey = "a5864b9fc019402e298a15bd3933a255";
+                var crx = @"C:\Users\neopi\Downloads\undefined 1.1.3.0.crx";
+                ChromeOptions options = new ChromeOptions();
+                options.AddExtensions(crx);
+                IWebDriver driver = new ChromeDriver(options);
+                driver.Navigate().GoToUrl(extensionUrl);
+                Thread.Sleep(2000);
+
+                IWebElement apiId = driver.FindElement(By.Id("API-input"));
+                apiId.SendKeys(apiKey);
+                Thread.Sleep(200);
+
+                IWebElement conBtn = driver.FindElement(By.Id("connect-button"));
+                conBtn.Click();
+                Thread.Sleep(200);
+
+                IWebElement changeBtn = driver.FindElement(By.CssSelector(".ui.fade.animated.button .hidden.content"));
+                changeBtn.Click();
+                Thread.Sleep(2000);
+
                 driver.Navigate().GoToUrl(targetUrl);
-                Thread.Sleep(1500);
+                Thread.Sleep(2000);
 
                 IWebElement ele = driver.FindElement(By.CssSelector(".intro-content-buttons-item-text"));
                 ele.Click();
-                Thread.Sleep(1500);
+                Thread.Sleep(2000);
 
                 IWebElement firstNameEle = driver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(firstName);
-                Thread.Sleep(100);
+                Thread.Sleep(200);
 
                 IWebElement lastNameEle = driver.FindElement(By.Id("form_lastname"));
                 lastNameEle.SendKeys(lastName);
-                Thread.Sleep(100);
+                Thread.Sleep(200);
 
                 IWebElement emailEle = driver.FindElement(By.Id("form_email"));
                 emailEle.SendKeys(email);
-                Thread.Sleep(100);
+                Thread.Sleep(200);
 
                 IWebElement ercWalletEle = driver.FindElement(By.Id("extraField_0"));
                 ercWalletEle.SendKeys(wallet);
-                Thread.Sleep(100);
+                Thread.Sleep(200);
 
                 IWebElement submitBtn = driver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
-                Thread.Sleep(500);
-
-                driver.Close();
-
+                Thread.Sleep(3000);
+                return driver;
             }
             catch (Exception)
             {
-
                 throw;
             }
 
@@ -166,12 +174,9 @@ namespace Verifier
 
         public string GenerateWallet()
         {
-            string password = "asd123AA!@#";
-
             EthECKey key = EthECKey.GenerateKey();
             byte[] privateKey = key.GetPrivateKeyAsBytes();
             string address = key.GetPublicAddress();
-            var keyStore = new KeyStoreScryptService();
             return address;
         }
 
@@ -193,7 +198,5 @@ namespace Verifier
             }
             return Name;
         }
-
-
     }
 }
