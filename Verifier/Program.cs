@@ -14,7 +14,6 @@ namespace Verifier
         public static void Main(string[] args)
         {
             var emailPost = "@vunimail.com";
-
             Console.WriteLine("Enter ref link:");
             string refLink = Console.ReadLine();
             Console.WriteLine("Enter Work Time:");
