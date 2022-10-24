@@ -5,6 +5,9 @@ using OpenQA.Selenium.Chrome;
 using Nethereum.Signer;
 using EAGetMail;
 using System.Linq;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Verifier
 {
@@ -17,57 +20,61 @@ namespace Verifier
             Console.WriteLine("Enter Work Time:");
             int work = Convert.ToInt32(Console.ReadLine());
             Console.Write($"Verifier working on {DateTime.Now}");
-            for (int i = 0; i < work; i++)
-            {
-                var program = new Program();
-                var email = program.GetRandomEmail();
-                var lastName = program.GenerateName(5);
-                var ethWallet = program.GenerateWallet();
-                var program2 = new Program();
-                var firstName = program2.GenerateName(5);
-                program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
-                //program.Verify(email, pass, gmailUrl);
-                try
-                {
-                    MailServer oServer = new MailServer("imap.gmail.com",
-                                    "halligixby14@gmail.com",
-                                    "katqzeadmvkmqmdo",
-                                    ServerProtocol.Imap4);
-                    oServer.SSLConnection = true;
-                    oServer.Port = 993;
-                    MailClient oClient = new MailClient("TryIt");
-                    oClient.Connect(oServer);
-                    oClient.GetMailInfosParam.Reset();
-                    oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
-                    MailInfo[] infos = oClient.GetMailInfos();
-                    Console.WriteLine("Total {0} unread email(s)\r\n", infos.Length);
-                    var targetMailFrom = "hello@viral-loops.com";
-                    for (int j = 0; j < infos.Length; j++)
-                    {
-                        MailInfo info = infos[j];
-                        Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
-                            info.Index, info.Size, info.UIDL);
-                        Mail oMail = oClient.GetMail(info);
-                        if (oMail.From.ToString().Contains(targetMailFrom))
-                        {
-                            var url = program.GetVerifyLink(oMail.TextBody);
-                            //program.VerifyLink(url, drivers);
+            var program = new Program();
+            program.GetAllOldLink();
+            //for (int i = 0; i < work; i++)
+            //{
+            //    var program = new Program();
+            //    var email = program.GetRandomEmail();
+            //    var lastName = program.GenerateName(5);
+            //    var ethWallet = program.GenerateWallet();
+            //    var program2 = new Program();
+            //    var firstName = program2.GenerateName(5);
+            //    program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
+            //    //program.Verify(email, pass, gmailUrl);
+            //    try
+            //    {
+            //        MailServer oServer = new MailServer("imap.gmail.com",
+            //                        "halligixby14@gmail.com",
+            //                        "katqzeadmvkmqmdo",
+            //                        ServerProtocol.Imap4)
+            //        {
+            //            SSLConnection = true,
+            //            Port = 993
+            //        };
+            //        MailClient oClient = new MailClient("TryIt");
+            //        oClient.Connect(oServer);
+            //        oClient.GetMailInfosParam.Reset();
+            //        oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
+            //        MailInfo[] infos = oClient.GetMailInfos();
+            //        Console.WriteLine("Total {0} unread email(s)\r\n", infos.Length);
+            //        var targetMailFrom = "hello@viral-loops.com";
+            //        for (int j = 0; j < infos.Length; j++)
+            //        {
+            //            MailInfo info = infos[j];
+            //            Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
+            //                info.Index, info.Size, info.UIDL);
+            //            Mail oMail = oClient.GetMail(info);
+            //            if (oMail.From.ToString().Contains(targetMailFrom))
+            //            {
+            //                var url = program.GetVerifyLink(oMail.TextBody);
+            //                // program.VerifyLink(url);
 
-                        }
-                        Console.WriteLine("To: {0}", oMail.To.ToString());
-                        if (!info.Read)
-                        {
-                            oClient.MarkAsRead(info, true);
-                        }
-                    }
-                    oClient.Quit();
-                    Console.WriteLine("Completed!");
-                }
-                catch (Exception ep)
-                {
-                    Console.WriteLine(ep.Message);
-                }
-            }
+            //            }
+            //            Console.WriteLine("To: {0}", oMail.To.ToString());
+            //            if (!info.Read)
+            //            {
+            //                oClient.MarkAsRead(info, true);
+            //            }
+            //        }
+            //        oClient.Quit();
+            //        Console.WriteLine("Completed!");
+            //    }
+            //    catch (Exception ep)
+            //    {
+            //        Console.WriteLine(ep.Message);
+            //    }
+            //}
         }
 
         public string GetVerifyLink(string textBody)
@@ -83,6 +90,84 @@ namespace Verifier
             var newText = textBody.Split(prefix)[1];
             url = newText.Split(postfix).First();
             return url;
+        }
+
+        public static string CreateOrUpdateFile()
+        {
+            string localPath = string.Format("{0}\\VerifyLinks", Directory.GetCurrentDirectory());
+            if (!Directory.Exists(localPath))
+            {
+                Directory.CreateDirectory(localPath);
+            }
+            string filePath = string.Format("{0}\\VerifyLinks\\VerifyLinks.txt", Directory.GetCurrentDirectory());
+            if (!File.Exists(filePath))
+            {
+                FileStream fileStream = File.Create(filePath);
+                fileStream.Close();
+            }
+            return filePath;
+        }
+
+        public void GetAllOldLink()
+        {
+            try
+            {
+                MailServer oServer = new MailServer("imap.gmail.com",
+                                "halligixby14@gmail.com",
+                                "katqzeadmvkmqmdo",
+                                ServerProtocol.Imap4)
+                {
+                    SSLConnection = true,
+                    Port = 993
+                };
+                MailClient oClient = new MailClient("TryIt");
+                oClient.Connect(oServer);
+                oClient.GetMailInfosParam.Reset();
+                oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
+                MailInfo[] infos = oClient.GetMailInfos();
+                string param = "Verify your email address (Trial Version)";
+                Console.WriteLine("Total {0} all email(s)\r\n", infos.Length);
+                var targetMailFrom = "hello@viral-loops.com";
+                int count = 0;
+                for (int j = 0; j < infos.Length; j++)
+                {
+                    MailInfo info = infos[j];
+                    Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
+                        info.Index, info.Size, info.UIDL);
+                    Mail oMail = oClient.GetMail(info);
+                    if (oMail.Subject.Contains(param))
+                    {
+                        var url = GetVerifyLink(oMail.TextBody);
+                        WriteLink(url);
+                        count++;
+                        // program.VerifyLink(url);
+
+                    }
+                    Console.WriteLine("To: {0}", oMail.To.ToString());
+                    if (!info.Read)
+                    {
+                        oClient.MarkAsRead(info, true);
+                    }
+                }
+                oClient.Quit();
+                Console.WriteLine($"Completed! Total: {count} Links");
+            }
+            catch (Exception ep)
+            {
+                Console.WriteLine(ep.Message);
+            }
+        }
+
+
+        public static string WriteLink(string url)
+        {
+            var filePath = CreateOrUpdateFile();
+            using (StreamWriter writer = new StreamWriter(filePath, append: true))
+            {
+                writer.WriteLine(url, 0, url.Length);
+                writer.Close();
+            }
+            return filePath;
         }
 
         public void VerifyLink(string url, IWebDriver driver)
@@ -123,7 +208,7 @@ namespace Verifier
             try
             {
                 driver.Navigate().GoToUrl(extensionUrl);
-                Thread.Sleep(2000);
+                Thread.Sleep(2500);
 
                 IWebElement apiId = driver.FindElement(By.Id("API-input"));
                 apiId.SendKeys(apiKey);
@@ -138,7 +223,7 @@ namespace Verifier
                 Thread.Sleep(2000);
 
                 driver.Navigate().GoToUrl(targetUrl);
-                Thread.Sleep(2000);
+                Thread.Sleep(2500);
 
                 IWebElement ele = driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
                 ele.Click();
@@ -172,7 +257,7 @@ namespace Verifier
             {
                 driver.Close();
                 Console.WriteLine("Slept!");
-                Thread.Sleep(60000);
+                Thread.Sleep(46300);
             }
 
         }
