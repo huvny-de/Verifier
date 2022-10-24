@@ -13,8 +13,7 @@ namespace Verifier
         public static void Main(string[] args)
         {
             var emailPost = "@vunimail.com";
-            Console.WriteLine("Enter ref link:");
-            string refLink = Console.ReadLine();
+            string refLink = "https://cointelegraph.com/historical?referral=gurew19";
             Console.WriteLine("Enter Work Time:");
             int work = Convert.ToInt32(Console.ReadLine());
             Console.Write($"Verifier working on {DateTime.Now}");
@@ -26,7 +25,7 @@ namespace Verifier
                 var ethWallet = program.GenerateWallet();
                 var program2 = new Program();
                 var firstName = program2.GenerateName(5);
-                var drivers = program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
+                program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet);
                 //program.Verify(email, pass, gmailUrl);
                 try
                 {
@@ -52,7 +51,7 @@ namespace Verifier
                         if (oMail.From.ToString().Contains(targetMailFrom))
                         {
                             var url = program.GetVerifyLink(oMail.TextBody);
-                            program.VerifyLink(url, drivers);
+                            //program.VerifyLink(url, drivers);
 
                         }
                         Console.WriteLine("To: {0}", oMail.To.ToString());
@@ -109,19 +108,20 @@ namespace Verifier
             return finalString;
         }
 
-        public IWebDriver InputEmail(string email, string targetUrl, string firstName, string lastName, string wallet)
+        public void InputEmail(string email, string targetUrl, string firstName, string lastName, string wallet)
         {
-            Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet}");
+            Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet} \\n");
+            var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
+            var apiKey = "a5864b9fc019402e298a15bd3933a255";
+            var crx = @"C:\Users\neopi\Downloads\undefined 1.1.3.0.crx";
+            ChromeOptions options = new ChromeOptions();
+            options.AddExtensions(crx);
+            options.AddArgument("no-sandbox");
+            IWebDriver driver = new ChromeDriver(options);
             //var cOptions = new ChromeOptions();
             //cOptions.BinaryLocation = @"C:\Users\neopi\Downloads\GoogleChromePortable\App\Chrome-bin\chrome.exe";
             try
             {
-                var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
-                var apiKey = "a5864b9fc019402e298a15bd3933a255";
-                var crx = @"C:\Users\neopi\Downloads\undefined 1.1.3.0.crx";
-                ChromeOptions options = new ChromeOptions();
-                options.AddExtensions(crx);
-                IWebDriver driver = new ChromeDriver(options);
                 driver.Navigate().GoToUrl(extensionUrl);
                 Thread.Sleep(2000);
 
@@ -140,9 +140,9 @@ namespace Verifier
                 driver.Navigate().GoToUrl(targetUrl);
                 Thread.Sleep(2000);
 
-                IWebElement ele = driver.FindElement(By.CssSelector(".intro-content-buttons-item-text"));
+                IWebElement ele = driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
                 ele.Click();
-                Thread.Sleep(2000);
+                Thread.Sleep(2500);
 
                 IWebElement firstNameEle = driver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(firstName);
@@ -163,11 +163,16 @@ namespace Verifier
                 IWebElement submitBtn = driver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
                 Thread.Sleep(3000);
-                return driver;
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                throw;
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                driver.Close();
+                Console.WriteLine("Slept!");
+                Thread.Sleep(60000);
             }
 
         }
