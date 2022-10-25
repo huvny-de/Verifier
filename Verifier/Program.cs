@@ -19,10 +19,14 @@ namespace Verifier
         public static EmailConfiguration EmailConfig { get; set; } = new EmailConfiguration();
         public static string EmailPostfix { get; set; }
         public static string ChromFullPath { get; set; }
+        public static string ChromeDriverPath { get; set; }
+
         public static string ExtensionCrxPath { get; set; }
 
         public static void Main(string[] args)
         {
+            EmailConfig.Port = 993;
+            EmailConfig.SmtpServer = "imap.gmail.com";
             //if (!IsAdministrator())
             //{
             //    Console.WriteLine("Require Admin!");
@@ -30,12 +34,23 @@ namespace Verifier
             //    Console.ReadKey();
             //    Environment.Exit(0);
             //}
-            MappingConfig();
-            MappingAppsetting();
+            //MappingConfig();
+            //MappingAppsetting();
+
             Console.WriteLine("Enter Ref Link:");
             string refLink = Console.ReadLine().Trim();
             Console.WriteLine("Enter Proxy Api:");
             string apiKey = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Email Postfix:");
+            EmailPostfix = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Crx Path:");
+            ExtensionCrxPath = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Email:");
+            EmailConfig.Email = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Email App Password:");
+            EmailConfig.Password = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Chrome Driver Path:");
+            ChromeDriverPath = Console.ReadLine().Trim();
             Console.WriteLine("Enter Work Time:");
             int work = Convert.ToInt32(Console.ReadLine().Trim());
             Console.Write($"Verifier working on {DateTime.Now}");
@@ -271,12 +286,11 @@ namespace Verifier
         {
             Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet} \\n");
             var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
-            var crx = ExtensionCrxPath;
             ChromeOptions options = new ChromeOptions();
-            options.AddExtensions(crx);
+            options.AddExtensions(ExtensionCrxPath);
             options.AddArgument("no-sandbox");
-            options.BinaryLocation = ChromFullPath;
-            IWebDriver driver = new ChromeDriver(options);
+            //options.BinaryLocation = ChromFullPath;
+            IWebDriver driver = new ChromeDriver(ChromeDriverPath, options);
             try
             {
                 driver.Navigate().GoToUrl(extensionUrl);
