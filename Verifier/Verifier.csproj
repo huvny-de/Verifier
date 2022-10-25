@@ -186,6 +186,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="InputModels\CoinTeleGraphIM.cs" />
     <Compile Include="Models\Email.cs" />
     <Compile Include="Models\EmailConfiguration.cs" />
     <Compile Include="Program.cs" />

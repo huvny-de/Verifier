@@ -10,6 +10,7 @@ using System.Configuration;
 using System.Collections.Specialized;
 using Verifier.Models;
 using System.Security.Principal;
+using Verifier.InputModels;
 
 namespace Verifier
 {
@@ -19,7 +20,10 @@ namespace Verifier
         public static EmailConfiguration EmailConfig { get; set; } = new EmailConfiguration();
         public static string EmailPostfix { get; set; }
         public static string ChromFullPath { get; set; }
+        public static string ChromeDriverPath { get; set; }
         public static string ExtensionCrxPath { get; set; }
+
+        private static readonly int DF_NAMELENGTH = 5;
 
         public static void Main(string[] args)
         {
@@ -44,12 +48,16 @@ namespace Verifier
             for (int i = 0; i < work; i++)
             {
                 var program = new Program();
-                var email = program.GetRandomEmail();
-                var lastName = program.GenerateName(5);
-                var ethWallet = program.GenerateWallet();
                 var program2 = new Program();
-                var firstName = program2.GenerateName(5);
-                program.InputEmail(email + EmailPostfix, refLink, firstName, lastName, ethWallet, apiKey);
+                var inputModel = new CoinTeleGraphIM()
+                {
+                    Email = program.GetRandomEmail(),
+                    LastName = program.GenerateName(DF_NAMELENGTH),
+                    Wallet = program.GenerateWallet(),
+                    FirstName = program2.GenerateName(DF_NAMELENGTH),
+                    ApiKey = apiKey
+                };
+                program.InputEmail(inputModel);
                 //program.Verify(email, pass, gmailUrl);
                 TrackAndReadEmail(program);
             }
@@ -61,6 +69,7 @@ namespace Verifier
             Console.WriteLine("Email Postfix: " + EmailPostfix);
             ChromFullPath = ConfigurationManager.AppSettings.Get("ChromFullPath");
             ExtensionCrxPath = ConfigurationManager.AppSettings.Get("ExtensionCrxPath");
+            ChromeDriverPath = ConfigurationManager.AppSettings.Get("ChromeDriverPath");
         }
 
         private static void MappingConfig()
@@ -232,7 +241,6 @@ namespace Verifier
             }
         }
 
-
         public static string WriteLink(string url)
         {
             var filePath = CreateOrUpdateFile();
@@ -267,23 +275,22 @@ namespace Verifier
             return finalString;
         }
 
-        public void InputEmail(string email, string targetUrl, string firstName, string lastName, string wallet, string apiKey)
+        public void InputEmail(CoinTeleGraphIM inputModel)
         {
-            Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet} \\n");
+            Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
             var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
-            var crx = ExtensionCrxPath;
             ChromeOptions options = new ChromeOptions();
-            options.AddExtensions(crx);
+            options.AddExtensions(ExtensionCrxPath);
             options.AddArgument("no-sandbox");
-            options.BinaryLocation = ChromFullPath;
-            IWebDriver driver = new ChromeDriver(options);
+            //options.BinaryLocation = ChromFullPath;
+            IWebDriver driver = new ChromeDriver(ChromeDriverPath, options);
             try
             {
                 driver.Navigate().GoToUrl(extensionUrl);
                 Thread.Sleep(2500);
 
                 IWebElement apiId = driver.FindElement(By.Id("API-input"));
-                apiId.SendKeys(apiKey);
+                apiId.SendKeys(inputModel.ApiKey);
                 Thread.Sleep(200);
 
                 IWebElement conBtn = driver.FindElement(By.Id("connect-button"));
@@ -294,7 +301,7 @@ namespace Verifier
                 changeBtn.Click();
                 Thread.Sleep(2000);
 
-                driver.Navigate().GoToUrl(targetUrl);
+                driver.Navigate().GoToUrl(inputModel.TargetUrl);
                 Thread.Sleep(2500);
 
                 IWebElement ele = driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
@@ -302,19 +309,19 @@ namespace Verifier
                 Thread.Sleep(2500);
 
                 IWebElement firstNameEle = driver.FindElement(By.Id("form_firstName"));
-                firstNameEle.SendKeys(firstName);
+                firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 
                 IWebElement lastNameEle = driver.FindElement(By.Id("form_lastname"));
-                lastNameEle.SendKeys(lastName);
+                lastNameEle.SendKeys(inputModel.LastName);
                 Thread.Sleep(200);
 
                 IWebElement emailEle = driver.FindElement(By.Id("form_email"));
-                emailEle.SendKeys(email);
+                emailEle.SendKeys(inputModel.Email);
                 Thread.Sleep(200);
 
                 IWebElement ercWalletEle = driver.FindElement(By.Id("extraField_0"));
-                ercWalletEle.SendKeys(wallet);
+                ercWalletEle.SendKeys(inputModel.Wallet);
                 Thread.Sleep(200);
 
                 IWebElement submitBtn = driver.FindElement(By.Id("vl_popup_submit"));
