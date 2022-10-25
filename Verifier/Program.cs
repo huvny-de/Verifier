@@ -6,25 +6,41 @@ using Nethereum.Signer;
 using EAGetMail;
 using System.Linq;
 using System.IO;
+using System.Configuration;
+using System.Collections.Specialized;
+using Verifier.Models;
+using System.Security.Principal;
 
 namespace Verifier
 {
+
     public class Program
     {
+        public static EmailConfiguration EmailConfig { get; set; } = new EmailConfiguration();
+        public static string EmailPostfix { get; set; }
+        public static string ChromFullPath { get; set; }
+        public static string ExtensionCrxPath { get; set; }
+
         public static void Main(string[] args)
         {
-            var emailPost = "@vunimail.com";
-
-            Console.WriteLine("Enter Ref Link::");
-            string refLink = Console.ReadLine();
+            //if (!IsAdministrator())
+            //{
+            //    Console.WriteLine("Require Admin!");
+            //    Console.WriteLine("\npress any key to exit the process...");
+            //    Console.ReadKey();
+            //    Environment.Exit(0);
+            //}
+            MappingConfig();
+            MappingAppsetting();
+            Console.WriteLine("Enter Ref Link:");
+            string refLink = Console.ReadLine().Trim();
             Console.WriteLine("Enter Proxy Api:");
-            string apiKey = Console.ReadLine();
+            string apiKey = Console.ReadLine().Trim();
             Console.WriteLine("Enter Work Time:");
-
-            int work = Convert.ToInt32(Console.ReadLine());
+            int work = Convert.ToInt32(Console.ReadLine().Trim());
             Console.Write($"Verifier working on {DateTime.Now}");
-            //var program = new Program();
-            //program.GetAllOldLink();
+            //var program1 = new Program();
+            //program1.GetAllOldLink();
             for (int i = 0; i < work; i++)
             {
                 var program = new Program();
@@ -33,50 +49,103 @@ namespace Verifier
                 var ethWallet = program.GenerateWallet();
                 var program2 = new Program();
                 var firstName = program2.GenerateName(5);
-                program.InputEmail(email + emailPost, refLink, firstName, lastName, ethWallet, apiKey);
+                program.InputEmail(email + EmailPostfix, refLink, firstName, lastName, ethWallet, apiKey);
                 //program.Verify(email, pass, gmailUrl);
-                try
-                {
-                    MailServer oServer = new MailServer("imap.gmail.com",
-                                    "halligixby14@gmail.com",
-                                    "katqzeadmvkmqmdo",
-                                    ServerProtocol.Imap4)
-                    {
-                        SSLConnection = true,
-                        Port = 993
-                    };
-                    MailClient oClient = new MailClient("TryIt");
-                    oClient.Connect(oServer);
-                    oClient.GetMailInfosParam.Reset();
-                    oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
-                    MailInfo[] infos = oClient.GetMailInfos();
-                    Console.WriteLine("Total {0} unread email(s)\r\n", infos.Length);
-                    var targetMailFrom = "hello@viral-loops.com";
-                    for (int j = 0; j < infos.Length; j++)
-                    {
-                        MailInfo info = infos[j];
-                        Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
-                            info.Index, info.Size, info.UIDL);
-                        Mail oMail = oClient.GetMail(info);
-                        if (oMail.From.ToString().Contains(targetMailFrom))
-                        {
-                            var url = program.GetVerifyLink(oMail.TextBody);
-                            // program.VerifyLink(url);
+                TrackAndReadEmail(program);
+            }
+        }
 
-                        }
-                        Console.WriteLine("To: {0}", oMail.To.ToString());
-                        if (!info.Read)
-                        {
-                            oClient.MarkAsRead(info, true);
-                        }
-                    }
-                    oClient.Quit();
-                    Console.WriteLine("Completed!");
-                }
-                catch (Exception ep)
+        private static void MappingAppsetting()
+        {
+            EmailPostfix = ConfigurationManager.AppSettings.Get("EmailPostfix");
+            Console.WriteLine("Email Postfix: " + EmailPostfix);
+            ChromFullPath = ConfigurationManager.AppSettings.Get("ChromFullPath");
+            ExtensionCrxPath = ConfigurationManager.AppSettings.Get("ExtensionCrxPath");
+        }
+
+        private static void MappingConfig()
+        {
+            MappingEmailConfig();
+        }
+
+        public static bool IsAdministrator()
+        {
+            using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
+            {
+                WindowsPrincipal principal = new WindowsPrincipal(identity);
+                return principal.IsInRole(WindowsBuiltInRole.Administrator);
+            }
+        }
+
+        private static void MappingEmailConfig()
+        {
+            NameValueCollection emailConfigValue = (NameValueCollection)ConfigurationManager.GetSection("EmailConfiguration");
+            foreach (string key in emailConfigValue.AllKeys)
+            {
+                switch (key)
                 {
-                    Console.WriteLine(ep.Message);
+                    case nameof(EmailConfig.Email):
+                        EmailConfig.Email = emailConfigValue[key];
+                        Console.WriteLine("Receive message in: " + EmailConfig.Email);
+                        break;
+                    case nameof(EmailConfig.SmtpServer):
+                        EmailConfig.SmtpServer = emailConfigValue[key];
+                        break;
+                    case nameof(EmailConfig.Password):
+                        EmailConfig.Password = emailConfigValue[key];
+                        break;
+                    case nameof(EmailConfig.Port):
+                        EmailConfig.Port = Convert.ToInt32(emailConfigValue[key]);
+                        break;
+                    default:
+                        break;
                 }
+            }
+        }
+
+        private static void TrackAndReadEmail(Program program)
+        {
+            try
+            {
+                MailServer oServer = new MailServer(EmailConfig.SmtpServer,
+                               EmailConfig.Email,
+                               EmailConfig.Password,
+                               ServerProtocol.Imap4)
+                {
+                    SSLConnection = true,
+                    Port = EmailConfig.Port
+                };
+                MailClient oClient = new MailClient("TryIt");
+                oClient.Connect(oServer);
+                oClient.GetMailInfosParam.Reset();
+                oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
+                MailInfo[] infos = oClient.GetMailInfos();
+                Console.WriteLine("Total {0} unread email(s)\r\n", infos.Length);
+                string param = "Verify your email address (Trial Version)";
+                for (int j = 0; j < infos.Length; j++)
+                {
+                    MailInfo info = infos[j];
+                    Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
+                        info.Index, info.Size, info.UIDL);
+                    Mail oMail = oClient.GetMail(info);
+                    if (oMail.Subject.Contains(param))
+                    {
+                        var url = program.GetVerifyLink(oMail.TextBody);
+                        // program.VerifyLink(url);
+
+                    }
+                    Console.WriteLine("To: {0}", oMail.To.ToString());
+                    if (!info.Read)
+                    {
+                        oClient.MarkAsRead(info, true);
+                    }
+                }
+                oClient.Quit();
+                Console.WriteLine("Completed!");
+            }
+            catch (Exception ep)
+            {
+                Console.WriteLine(ep.Message);
             }
         }
 
@@ -115,22 +184,24 @@ namespace Verifier
         {
             try
             {
-                MailServer oServer = new MailServer("imap.gmail.com",
-                                "halligixby14@gmail.com",
-                                "katqzeadmvkmqmdo",
+                MailServer oServer = new MailServer(EmailConfig.SmtpServer,
+                                EmailConfig.Email,
+                                EmailConfig.Password,
                                 ServerProtocol.Imap4)
                 {
                     SSLConnection = true,
-                    Port = 993
+                    Port = EmailConfig.Port
                 };
                 MailClient oClient = new MailClient("TryIt");
                 oClient.Connect(oServer);
                 oClient.GetMailInfosParam.Reset();
                 oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
+                //oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.OrderByDateTime;
+                //oClient.GetMailInfosParam.DateRange.SINCE = System.DateTime.Now.AddHours(-3.5);
+                //oClient.GetMailInfosParam.DateRange.BEFORE = System.DateTime.Now;
                 MailInfo[] infos = oClient.GetMailInfos();
                 string param = "Verify your email address (Trial Version)";
                 Console.WriteLine("Total {0} all email(s)\r\n", infos.Length);
-                var targetMailFrom = "hello@viral-loops.com";
                 int count = 0;
                 for (int j = 0; j < infos.Length; j++)
                 {
@@ -200,13 +271,12 @@ namespace Verifier
         {
             Console.WriteLine($"Working on Email: {email} | Name: {firstName} | {lastName}\n Wallet: {wallet} \\n");
             var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
-            var crx = @"C:\Users\neopi\Downloads\undefined 1.1.3.0.crx";
+            var crx = ExtensionCrxPath;
             ChromeOptions options = new ChromeOptions();
             options.AddExtensions(crx);
             options.AddArgument("no-sandbox");
+            options.BinaryLocation = ChromFullPath;
             IWebDriver driver = new ChromeDriver(options);
-            //var cOptions = new ChromeOptions();
-            //cOptions.BinaryLocation = @"C:\Users\neopi\Downloads\GoogleChromePortable\App\Chrome-bin\chrome.exe";
             try
             {
                 driver.Navigate().GoToUrl(extensionUrl);
