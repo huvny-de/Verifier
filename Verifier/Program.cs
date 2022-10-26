@@ -11,6 +11,10 @@ using System.Collections.Specialized;
 using Verifier.Models;
 using System.Security.Principal;
 using Verifier.InputModels;
+using SeleniumUndetectedChromeDriver;
+using System.Collections.Generic;
+using System.Net.Http;
+using Newtonsoft.Json;
 
 namespace Verifier
 {
@@ -22,11 +26,17 @@ namespace Verifier
         public static string ChromFullPath { get; set; }
         public static string ChromeDriverPath { get; set; }
         public static string ExtensionCrxPath { get; set; }
+        public static int RunType { get; set; }
+        public static string LinkFilePath { get; set; }
+
+        public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
 
         private static readonly int DF_NAMELENGTH = 5;
 
         public static void Main(string[] args)
         {
+            MappingConfig();
+            MappingAppsetting();
             //if (!IsAdministrator())
             //{
             //    Console.WriteLine("Require Admin!");
@@ -34,8 +44,41 @@ namespace Verifier
             //    Console.ReadKey();
             //    Environment.Exit(0);
             //}
-            MappingConfig();
-            MappingAppsetting();
+            Console.WriteLine("Choose Run Type:\n1. Auto ref\n2. Get Verify Link\n3. Verify All Link");
+            RunType = Convert.ToInt32(Console.ReadLine().Trim());
+            switch (RunType)
+            {
+                case 1:
+                    AutoRef();
+                    Environment.Exit(0);
+                    break;
+                case 2:
+                    Console.Write($"Verifier working on {DateTime.Now}");
+                    var program2 = new Program();
+                    program2.GetAllOldLink();
+                    Environment.Exit(0);
+                    break;
+                case 3:
+                    Console.Write($"Verifier working on {DateTime.Now}\n");
+                    Console.WriteLine("Enter Proxy Api:");
+                    string api = Console.ReadLine().Trim();
+                    Console.WriteLine("Enter Verify Link Path:");
+                    LinkFilePath = Console.ReadLine().Trim();
+                    var program3 = new Program();
+                    string[] linkArr = File.ReadAllLines(LinkFilePath);
+                    foreach (var item in linkArr)
+                    {
+                        program3.VerifyLink(item, api);
+                    }
+                    Environment.Exit(0);
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private static void AutoRef()
+        {
             Console.WriteLine("Enter Ref Link:");
             string refLink = Console.ReadLine().Trim();
             Console.WriteLine("Enter Proxy Api:");
@@ -43,24 +86,30 @@ namespace Verifier
             Console.WriteLine("Enter Work Time:");
             int work = Convert.ToInt32(Console.ReadLine().Trim());
             Console.Write($"Verifier working on {DateTime.Now}");
-            //var program1 = new Program();
-            //program1.GetAllOldLink();
             for (int i = 0; i < work; i++)
             {
                 var program = new Program();
                 var program2 = new Program();
                 var inputModel = new CoinTeleGraphIM()
                 {
-                    Email = program.GetRandomEmail(),
+                    Email = program.GetRandomEmail() + EmailPostfix,
                     LastName = program.GenerateName(DF_NAMELENGTH),
                     Wallet = program.GenerateWallet(),
                     FirstName = program2.GenerateName(DF_NAMELENGTH),
-                    ApiKey = apiKey
+                    ApiKey = apiKey,
+                    TargetUrl = refLink
                 };
                 program.InputEmail(inputModel);
                 //program.Verify(email, pass, gmailUrl);
-                TrackAndReadEmail(program);
+                //TrackAndReadEmail(program);
             }
+        }
+
+        private static int GetRandomlocation()
+        {
+            Random random = new Random();
+            int locationId = random.Next(0, LocationArr.Length);
+            return locationId;
         }
 
         private static void MappingAppsetting()
@@ -173,6 +222,22 @@ namespace Verifier
             return url;
         }
 
+        public static string[] GetAllVerifyLink()
+        {
+            string localPath = string.Format("{0}\\VerifyLinks", Directory.GetCurrentDirectory());
+            if (!Directory.Exists(localPath))
+            {
+                Directory.CreateDirectory(localPath);
+            }
+            string filePath = string.Format("{0}\\VerifyLinks\\VerifyLinks.txt", Directory.GetCurrentDirectory());
+            string[] rs = { "" };
+            if (File.Exists(filePath))
+            {
+                rs = File.ReadAllLines(filePath);
+            }
+            return rs;
+        }
+
         public static string CreateOrUpdateFile()
         {
             string localPath = string.Format("{0}\\VerifyLinks", Directory.GetCurrentDirectory());
@@ -252,14 +317,53 @@ namespace Verifier
             return filePath;
         }
 
-        public void VerifyLink(string url, IWebDriver driver)
+        public void VerifyLink(string url, string apiKey)
         {
+            // var extensionUrl = "chrome-extension://ehjabdnjgcjapmdngchpedkjghjfanfn/popup.html";
+            var httpsProxy = GetHttpsProxy(apiKey);
+            ChromeOptions options = new ChromeOptions();
+            options.AddArguments("--no-sandbox");
+            options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+            var driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: @"C:\Users\neopi\Desktop\chromedriver.exe", browserExecutablePath: @"C:\Program Files\Google\Chrome\Application\chrome.exe");
+            try
+            {
+                driver.GoToUrl(url);
+                Thread.Sleep(10000);
+                driver.Close();
+                Thread.Sleep(20000);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                driver.Close();
+            }
 
-            driver.Navigate().GoToUrl(url);
-            Thread.Sleep(10000);
-            driver.Close();
-            Thread.Sleep(60000);
         }
+
+        public static NewProxyModel GetProxyModel(string apiKey)
+        {
+            var locationId = GetRandomlocation();
+            var proxy = TMAPIHelper.GetNewProxy(apiKey, apiKey, locationId);
+            NewProxyModel proxyModel = JsonConvert.DeserializeObject<NewProxyModel>(proxy);
+            return proxyModel;
+        }
+
+        public static string[] GetHttpsProxy(string apiKey)
+        {
+            string[] httpsProxy;
+            NewProxyModel proxyModel = GetProxyModel(apiKey);
+            while (!(proxyModel.code == 0))
+            {
+                Thread.Sleep(1000);
+                proxyModel = GetProxyModel(apiKey);
+            }
+            httpsProxy = proxyModel.data.https.Split(':');
+            return httpsProxy;
+        }
+
 
         public string GetRandomEmail()
         {
@@ -275,6 +379,26 @@ namespace Verifier
             return finalString;
         }
 
+        public NewProxyModel GetNewProxy(string apiKey, int location)
+        {
+            string url = "https://tmproxy.com/api/proxy/get-new-proxy";
+            var httpclient = new System.Net.Http.HttpClient();
+            MultipartFormDataContent content = new MultipartFormDataContent();
+            content.Add(new StringContent(apiKey), "api_key");
+            content.Add(new StringContent(apiKey), "sign");
+            content.Add(new StringContent(location.ToString()), "id_location");
+            try
+            {
+                var response = httpclient.PostAsync(url, content).Result;
+                var rsString = response.Content.ReadAsStringAsync();
+                return JsonConvert.DeserializeObject<NewProxyModel>(rsString.Result);
+            }
+            catch (Exception e)
+            {
+                return new NewProxyModel();
+            }
+        }
+
         public void InputEmail(CoinTeleGraphIM inputModel)
         {
             Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
@@ -283,7 +407,8 @@ namespace Verifier
             options.AddExtensions(ExtensionCrxPath);
             options.AddArgument("no-sandbox");
             //options.BinaryLocation = ChromFullPath;
-            IWebDriver driver = new ChromeDriver(ChromeDriverPath, options);
+            //IWebDriver driver = new ChromeDriver(ChromeDriverPath, options);
+            IWebDriver driver = new ChromeDriver(options);
             try
             {
                 driver.Navigate().GoToUrl(extensionUrl);
