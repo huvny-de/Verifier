@@ -322,15 +322,14 @@ namespace Verifier
             // var extensionUrl = "chrome-extension://ehjabdnjgcjapmdngchpedkjghjfanfn/popup.html";
             var httpsProxy = GetHttpsProxy(apiKey);
             ChromeOptions options = new ChromeOptions();
-            options.AddArguments("--no-sandbox");
+            options.AddArgument("--no-sandbox");
             options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
             var driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: @"C:\Users\neopi\Desktop\chromedriver.exe", browserExecutablePath: @"C:\Program Files\Google\Chrome\Application\chrome.exe");
             try
             {
                 driver.GoToUrl(url);
-                Thread.Sleep(10000);
-                driver.Close();
                 Thread.Sleep(20000);
+
             }
             catch (Exception e)
             {
@@ -339,6 +338,7 @@ namespace Verifier
             finally
             {
                 driver.Close();
+                Thread.Sleep(20000);
             }
 
         }
