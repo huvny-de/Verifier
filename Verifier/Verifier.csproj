@@ -26,7 +26,7 @@
     <UpdateRequired>false</UpdateRequired>
     <MapFileExtensions>true</MapFileExtensions>
     <AutorunEnabled>true</AutorunEnabled>
-    <ApplicationRevision>3</ApplicationRevision>
+    <ApplicationRevision>5</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -190,6 +190,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="InputModels\CoinTeleGraphIM.cs" />
+    <Compile Include="Models\CustomConfigModel.cs" />
     <Compile Include="Models\Email.cs" />
     <Compile Include="Models\EmailConfiguration.cs" />
     <Compile Include="Models\Data.cs" />

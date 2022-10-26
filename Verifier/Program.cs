@@ -15,94 +15,138 @@ using SeleniumUndetectedChromeDriver;
 using System.Collections.Generic;
 using System.Net.Http;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 
 namespace Verifier
 {
-
     public class Program
     {
         public static EmailConfiguration EmailConfig { get; set; } = new EmailConfiguration();
         public static string EmailPostfix { get; set; }
-        public static string ChromFullPath { get; set; }
-        public static string ChromeDriverPath { get; set; }
-        public static string ExtensionCrxPath { get; set; }
+        public static string ChromeLocationPath { get; set; }
+        public static string ChromeDriverLocationPath { get; set; }
         public static int RunType { get; set; }
         public static string LinkFilePath { get; set; }
-
+        public static string ApiKey { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
-
         private static readonly int DF_NAMELENGTH = 5;
+        public static UndetectedChromeDriver _driver;
 
         public static void Main(string[] args)
         {
-            MappingConfig();
-            MappingAppsetting();
-            //if (!IsAdministrator())
-            //{
-            //    Console.WriteLine("Require Admin!");
-            //    Console.WriteLine("\npress any key to exit the process...");
-            //    Console.ReadKey();
-            //    Environment.Exit(0);
-            //}
-            Console.WriteLine("Choose Run Type:\n1. Auto ref\n2. Get Verify Link\n3. Verify All Link");
+            Console.Write($"Verifier working on {DateTime.Now}");
+            ReadSettingFile();
+            GlobalAppInput();
+            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link");
             RunType = Convert.ToInt32(Console.ReadLine().Trim());
             switch (RunType)
             {
                 case 1:
-                    AutoRef();
+                    AutoRefAndVerify();
+                    Console.ReadKey();
                     Environment.Exit(0);
                     break;
                 case 2:
-                    Console.Write($"Verifier working on {DateTime.Now}");
-                    var program2 = new Program();
-                    program2.GetAllOldLink();
+                    GetAllOldLink();
+                    Console.ReadKey();
                     Environment.Exit(0);
                     break;
                 case 3:
-                    Console.Write($"Verifier working on {DateTime.Now}\n");
-                    Console.WriteLine("Enter Proxy Api:");
-                    string api = Console.ReadLine().Trim();
-                    Console.WriteLine("Enter Verify Link Path:");
-                    LinkFilePath = Console.ReadLine().Trim();
-                    var program3 = new Program();
+                    InputMenu3();
                     string[] linkArr = File.ReadAllLines(LinkFilePath);
-                    foreach (var item in linkArr)
+                    int count = 0;
+                    for (int i = 0; i < linkArr.Length; i++)
                     {
-                        program3.VerifyLink(item, api);
+                        count = i + 1;
+                        Console.WriteLine($"Current Index: {i + 1}");
+                        VerifyLink(linkArr[i]);
                     }
+                    Console.WriteLine($"Job Completed! Total: {count} links. Time: {DateTime.Now}");
+                    Console.ReadKey();
                     Environment.Exit(0);
                     break;
                 default:
+                    Console.WriteLine("Use your eyes!");
+                    Console.ReadKey();
+                    Environment.Exit(0);
                     break;
             }
         }
 
-        private static void AutoRef()
+        private static void InputMenu3()
+        {
+            Console.WriteLine("Enter Verify Link Path:");
+            LinkFilePath = Console.ReadLine().Trim();
+        }
+
+        private static void GlobalAppInput()
+        {
+            Console.WriteLine("Enter Proxy Api:");
+            ApiKey = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Chrome Path:");
+            ChromeLocationPath = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Driver Path:");
+            ChromeDriverLocationPath = Console.ReadLine().Trim();
+        }
+
+        public static void ReadSettingFile()
+        {
+            string rs = "";
+            try
+            {
+                rs = File.ReadAllText(Directory.GetCurrentDirectory() + @"\AppSetting.json");
+            }
+            catch (Exception)
+            {
+            }
+            if (string.IsNullOrEmpty(rs))
+            {
+                Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory().ToString()}");
+                CreateSettingFile();
+                Console.ReadLine();
+                return;
+            }
+            var customConfig = JsonConvert.DeserializeObject<CustomConfigModel>(rs);
+            if (String.IsNullOrEmpty(customConfig.Email) | String.IsNullOrEmpty(customConfig.AppPassword) | String.IsNullOrEmpty(customConfig.EmailPostFix))
+            {
+                Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory().ToString()}");
+                Console.ReadLine();
+                return;
+            }
+            MappingConfig(customConfig);
+            MappingAppsetting(customConfig);
+        }
+
+        public static void CreateSettingFile()
+        {
+            var customConfig = new CustomConfigModel();
+            var json = JsonConvert.SerializeObject(customConfig);
+            File.WriteAllText(Directory.GetCurrentDirectory() + @"\AppSetting.json", json);
+        }
+
+        private static void AutoRefAndVerify()
         {
             Console.WriteLine("Enter Ref Link:");
             string refLink = Console.ReadLine().Trim();
-            Console.WriteLine("Enter Proxy Api:");
-            string apiKey = Console.ReadLine().Trim();
+
             Console.WriteLine("Enter Work Time:");
-            int work = Convert.ToInt32(Console.ReadLine().Trim());
+            int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
+
             Console.Write($"Verifier working on {DateTime.Now}");
-            for (int i = 0; i < work; i++)
+            for (int i = 0; i < workTimes; i++)
             {
-                var program = new Program();
-                var program2 = new Program();
                 var inputModel = new CoinTeleGraphIM()
                 {
-                    Email = program.GetRandomEmail() + EmailPostfix,
-                    LastName = program.GenerateName(DF_NAMELENGTH),
-                    Wallet = program.GenerateWallet(),
-                    FirstName = program2.GenerateName(DF_NAMELENGTH),
-                    ApiKey = apiKey,
+                    Email = GetRandomEmail() + EmailPostfix,
+                    LastName = GenerateName(DF_NAMELENGTH),
+                    Wallet = GenerateWallet(),
+                    FirstName = GenerateName(DF_NAMELENGTH),
                     TargetUrl = refLink
                 };
-                program.InputEmail(inputModel);
-                //program.Verify(email, pass, gmailUrl);
-                //TrackAndReadEmail(program);
+                InputEmail(inputModel);
+                TrackAndReadEmail();
             }
+            Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
 
         private static int GetRandomlocation()
@@ -112,18 +156,15 @@ namespace Verifier
             return locationId;
         }
 
-        private static void MappingAppsetting()
+        private static void MappingAppsetting(CustomConfigModel customConfig)
         {
-            EmailPostfix = ConfigurationManager.AppSettings.Get("EmailPostfix");
+            EmailPostfix = customConfig.EmailPostFix;
             Console.WriteLine("Email Postfix: " + EmailPostfix);
-            ChromFullPath = ConfigurationManager.AppSettings.Get("ChromFullPath");
-            ExtensionCrxPath = ConfigurationManager.AppSettings.Get("ExtensionCrxPath");
-            ChromeDriverPath = ConfigurationManager.AppSettings.Get("ChromeDriverPath");
         }
 
-        private static void MappingConfig()
+        private static void MappingConfig(CustomConfigModel customConfig)
         {
-            MappingEmailConfig();
+            MappingEmailConfig(customConfig);
         }
 
         public static bool IsAdministrator()
@@ -135,7 +176,7 @@ namespace Verifier
             }
         }
 
-        private static void MappingEmailConfig()
+        private static void MappingEmailConfig(CustomConfigModel customConfig)
         {
             NameValueCollection emailConfigValue = (NameValueCollection)ConfigurationManager.GetSection("EmailConfiguration");
             foreach (string key in emailConfigValue.AllKeys)
@@ -143,14 +184,14 @@ namespace Verifier
                 switch (key)
                 {
                     case nameof(EmailConfig.Email):
-                        EmailConfig.Email = emailConfigValue[key];
+                        EmailConfig.Email = customConfig.Email;
                         Console.WriteLine("Receive message in: " + EmailConfig.Email);
                         break;
                     case nameof(EmailConfig.SmtpServer):
                         EmailConfig.SmtpServer = emailConfigValue[key];
                         break;
                     case nameof(EmailConfig.Password):
-                        EmailConfig.Password = emailConfigValue[key];
+                        EmailConfig.Password = customConfig.AppPassword;
                         break;
                     case nameof(EmailConfig.Port):
                         EmailConfig.Port = Convert.ToInt32(emailConfigValue[key]);
@@ -161,45 +202,33 @@ namespace Verifier
             }
         }
 
-        private static void TrackAndReadEmail(Program program)
+        private static void TrackAndReadEmail()
         {
             try
             {
-                MailServer oServer = new MailServer(EmailConfig.SmtpServer,
-                               EmailConfig.Email,
-                               EmailConfig.Password,
-                               ServerProtocol.Imap4)
-                {
-                    SSLConnection = true,
-                    Port = EmailConfig.Port
-                };
-                MailClient oClient = new MailClient("TryIt");
-                oClient.Connect(oServer);
+                string searchKey = "Verify your email address (Trial Version)";
+                MailClient oClient = GetMailClient();
+
                 oClient.GetMailInfosParam.Reset();
                 oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
-                MailInfo[] infos = oClient.GetMailInfos();
-                Console.WriteLine("Total {0} unread email(s)\r\n", infos.Length);
-                string param = "Verify your email address (Trial Version)";
-                for (int j = 0; j < infos.Length; j++)
-                {
-                    MailInfo info = infos[j];
-                    Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
-                        info.Index, info.Size, info.UIDL);
-                    Mail oMail = oClient.GetMail(info);
-                    if (oMail.Subject.Contains(param))
-                    {
-                        var url = program.GetVerifyLink(oMail.TextBody);
-                        // program.VerifyLink(url);
+                oClient.GetMailInfosParam.SubjectContains = searchKey;
+                var mailInfoArr = oClient.GetMailInfos();
 
-                    }
-                    Console.WriteLine("To: {0}", oMail.To.ToString());
-                    if (!info.Read)
-                    {
-                        oClient.MarkAsRead(info, true);
-                    }
+                while (mailInfoArr.Count() == 0)
+                {
+                    Console.WriteLine("Waiting for mail...");
+                    Thread.Sleep(1000);
+                    mailInfoArr = oClient.GetMailInfos();
+                }
+                MailInfo info = mailInfoArr[0];
+                Mail oMail = oClient.GetMail(info);
+                var url = GetVerifyLink(oMail.TextBody);
+                VerifyLinkOnCurrentSession(url, ApiKey);
+                if (!info.Read)
+                {
+                    oClient.MarkAsRead(info, true);
                 }
                 oClient.Quit();
-                Console.WriteLine("Completed!");
             }
             catch (Exception ep)
             {
@@ -207,7 +236,42 @@ namespace Verifier
             }
         }
 
-        public string GetVerifyLink(string textBody)
+        public static void MarkAsReadAllMailInfo(MailInfo[] mailInfos, MailClient mailClient)
+        {
+            if (mailInfos.Count() == 0)
+            {
+                return;
+            }
+            foreach (var mailInfo in mailInfos)
+            {
+                MarkAsReadMailInfo(mailInfo, mailClient);
+            }
+        }
+
+        public static void MarkAsReadMailInfo(MailInfo mailInfo, MailClient mailClient)
+        {
+            if (!mailInfo.Read)
+            {
+                mailClient.MarkAsRead(mailInfo, true);
+            }
+        }
+
+        private static MailClient GetMailClient()
+        {
+            MailServer oServer = new MailServer(EmailConfig.SmtpServer,
+                           EmailConfig.Email,
+                           EmailConfig.Password,
+                           ServerProtocol.Imap4)
+            {
+                SSLConnection = true,
+                Port = EmailConfig.Port
+            };
+            MailClient oClient = new MailClient("TryIt");
+            oClient.Connect(oServer);
+            return oClient;
+        }
+
+        public static string GetVerifyLink(string textBody)
         {
             string url = "";
             if (string.IsNullOrEmpty(textBody))
@@ -254,7 +318,7 @@ namespace Verifier
             return filePath;
         }
 
-        public void GetAllOldLink()
+        public static void GetAllOldLink()
         {
             try
             {
@@ -298,7 +362,7 @@ namespace Verifier
                     }
                 }
                 oClient.Quit();
-                Console.WriteLine($"Completed! Total: {count} Links");
+                Console.WriteLine($"Completed! Total: {count} Links. Time: {DateTime.Now}");
             }
             catch (Exception ep)
             {
@@ -317,19 +381,17 @@ namespace Verifier
             return filePath;
         }
 
-        public void VerifyLink(string url, string apiKey)
+        public static void VerifyLink(string url)
         {
-            // var extensionUrl = "chrome-extension://ehjabdnjgcjapmdngchpedkjghjfanfn/popup.html";
-            var httpsProxy = GetHttpsProxy(apiKey);
-            ChromeOptions options = new ChromeOptions();
-            options.AddArgument("--no-sandbox");
-            options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-            var driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: @"C:\Users\neopi\Desktop\chromedriver.exe", browserExecutablePath: @"C:\Program Files\Google\Chrome\Application\chrome.exe");
             try
             {
-                driver.GoToUrl(url);
-                Thread.Sleep(20000);
-
+                // var extensionUrl = "chrome-extension://ehjabdnjgcjapmdngchpedkjghjfanfn/popup.html";
+                var httpsProxy = GetHttpsProxy(ApiKey);
+                ChromeOptions options = new ChromeOptions();
+                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _driver.GoToUrl(url);
+                Thread.Sleep(45000);
             }
             catch (Exception e)
             {
@@ -337,10 +399,33 @@ namespace Verifier
             }
             finally
             {
-                driver.Close();
-                Thread.Sleep(20000);
+                _driver.Dispose();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(5000);
             }
+        }
 
+        public static void VerifyLinkOnCurrentSession(string url, string apiKey)
+        {
+            try
+            {
+                _driver.FindElement(By.CssSelector("body")).SendKeys(Keys.Control + "t");
+                _driver.SwitchTo().Window(_driver.WindowHandles.Last());
+                _driver.GoToUrl(url);
+                Thread.Sleep(45000);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                _driver.Dispose();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(5000);
+            }
         }
 
         public static NewProxyModel GetProxyModel(string apiKey)
@@ -364,8 +449,7 @@ namespace Verifier
             return httpsProxy;
         }
 
-
-        public string GetRandomEmail()
+        public static string GetRandomEmail()
         {
             var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
             var stringChars = new char[8];
@@ -379,77 +463,40 @@ namespace Verifier
             return finalString;
         }
 
-        public NewProxyModel GetNewProxy(string apiKey, int location)
+        public static void InputEmail(CoinTeleGraphIM inputModel)
         {
-            string url = "https://tmproxy.com/api/proxy/get-new-proxy";
-            var httpclient = new System.Net.Http.HttpClient();
-            MultipartFormDataContent content = new MultipartFormDataContent();
-            content.Add(new StringContent(apiKey), "api_key");
-            content.Add(new StringContent(apiKey), "sign");
-            content.Add(new StringContent(location.ToString()), "id_location");
             try
             {
-                var response = httpclient.PostAsync(url, content).Result;
-                var rsString = response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<NewProxyModel>(rsString.Result);
-            }
-            catch (Exception e)
-            {
-                return new NewProxyModel();
-            }
-        }
+                Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
+                var httpsProxy = GetHttpsProxy(ApiKey);
+                ChromeOptions options = new ChromeOptions();
+                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
 
-        public void InputEmail(CoinTeleGraphIM inputModel)
-        {
-            Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
-            var extensionUrl = "chrome-extension://pmdlifofgdjcolhfjjfkojibiimoahlc/popup.html";
-            ChromeOptions options = new ChromeOptions();
-            options.AddExtensions(ExtensionCrxPath);
-            options.AddArgument("no-sandbox");
-            //options.BinaryLocation = ChromFullPath;
-            //IWebDriver driver = new ChromeDriver(ChromeDriverPath, options);
-            IWebDriver driver = new ChromeDriver(options);
-            try
-            {
-                driver.Navigate().GoToUrl(extensionUrl);
+                _driver.Navigate().GoToUrl(inputModel.TargetUrl);
                 Thread.Sleep(2500);
 
-                IWebElement apiId = driver.FindElement(By.Id("API-input"));
-                apiId.SendKeys(inputModel.ApiKey);
-                Thread.Sleep(200);
-
-                IWebElement conBtn = driver.FindElement(By.Id("connect-button"));
-                conBtn.Click();
-                Thread.Sleep(200);
-
-                IWebElement changeBtn = driver.FindElement(By.CssSelector(".ui.fade.animated.button .hidden.content"));
-                changeBtn.Click();
-                Thread.Sleep(2000);
-
-                driver.Navigate().GoToUrl(inputModel.TargetUrl);
-                Thread.Sleep(2500);
-
-                IWebElement ele = driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
+                IWebElement ele = _driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
                 ele.Click();
                 Thread.Sleep(2500);
 
-                IWebElement firstNameEle = driver.FindElement(By.Id("form_firstName"));
+                IWebElement firstNameEle = _driver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 
-                IWebElement lastNameEle = driver.FindElement(By.Id("form_lastname"));
+                IWebElement lastNameEle = _driver.FindElement(By.Id("form_lastname"));
                 lastNameEle.SendKeys(inputModel.LastName);
                 Thread.Sleep(200);
 
-                IWebElement emailEle = driver.FindElement(By.Id("form_email"));
+                IWebElement emailEle = _driver.FindElement(By.Id("form_email"));
                 emailEle.SendKeys(inputModel.Email);
                 Thread.Sleep(200);
 
-                IWebElement ercWalletEle = driver.FindElement(By.Id("extraField_0"));
+                IWebElement ercWalletEle = _driver.FindElement(By.Id("extraField_0"));
                 ercWalletEle.SendKeys(inputModel.Wallet);
                 Thread.Sleep(200);
 
-                IWebElement submitBtn = driver.FindElement(By.Id("vl_popup_submit"));
+                IWebElement submitBtn = _driver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
                 Thread.Sleep(3000);
             }
@@ -457,16 +504,9 @@ namespace Verifier
             {
                 Console.WriteLine(e);
             }
-            finally
-            {
-                driver.Close();
-                Console.WriteLine("Slept!");
-                Thread.Sleep(46300);
-            }
-
         }
 
-        public string GenerateWallet()
+        public static string GenerateWallet()
         {
             EthECKey key = EthECKey.GenerateKey();
             byte[] privateKey = key.GetPrivateKeyAsBytes();
@@ -474,7 +514,7 @@ namespace Verifier
             return address;
         }
 
-        public string GenerateName(int len)
+        public static string GenerateName(int len)
         {
             Random r = new Random();
             string[] consonants = { "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "l", "n", "p", "q", "r", "s", "sh", "zh", "t", "v", "w", "x" };
