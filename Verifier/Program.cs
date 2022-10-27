@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using OpenQA.Selenium.Support.UI;
 
 namespace Verifier
 {
@@ -83,8 +84,6 @@ namespace Verifier
         {
             Console.WriteLine("Enter Proxy Api:");
             ApiKey = Console.ReadLine().Trim();
-            Console.WriteLine("Enter Chrome Path:");
-            ChromeLocationPath = Console.ReadLine().Trim();
             Console.WriteLine("Enter Driver Path:");
             ChromeDriverLocationPath = Console.ReadLine().Trim();
         }
@@ -107,7 +106,7 @@ namespace Verifier
                 return;
             }
             var customConfig = JsonConvert.DeserializeObject<CustomConfigModel>(rs);
-            if (String.IsNullOrEmpty(customConfig.Email) | String.IsNullOrEmpty(customConfig.AppPassword) | String.IsNullOrEmpty(customConfig.EmailPostFix))
+            if (String.IsNullOrEmpty(customConfig.Email) | String.IsNullOrEmpty(customConfig.AppPassword) | String.IsNullOrEmpty(customConfig.EmailPostFix) | String.IsNullOrEmpty(customConfig.ChromeLocationPath))
             {
                 Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory().ToString()}");
                 Console.ReadLine();
@@ -160,6 +159,7 @@ namespace Verifier
         {
             EmailPostfix = customConfig.EmailPostFix;
             Console.WriteLine("Email Postfix: " + EmailPostfix);
+            ChromeLocationPath = customConfig.ChromeLocationPath;
         }
 
         private static void MappingConfig(CustomConfigModel customConfig)
@@ -473,19 +473,17 @@ namespace Verifier
             try
             {
                 Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
-                var httpsProxy = GetHttpsProxy(ApiKey);
+                //   var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
-                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                //  options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
 
                 _driver.Navigate().GoToUrl(inputModel.TargetUrl);
                 Thread.Sleep(2500);
 
-                IWebElement ele = _driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
+                IWebElement ele = _driver.FindElementWait(By.ClassName("intro-content-buttons-item-text"), 10);
                 ele.Click();
-                Thread.Sleep(2500);
-
-                IWebElement firstNameEle = _driver.FindElement(By.Id("form_firstName"));
+                IWebElement firstNameEle = _driver.FindElementWait(By.Id("form_firstName"), 10);
                 firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 

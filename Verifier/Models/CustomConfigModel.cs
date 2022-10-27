@@ -11,5 +11,6 @@ namespace Verifier.Models
         public string Email { get; set; }
         public string AppPassword { get; set; }
         public string EmailPostFix { get; set; }
+        public string ChromeLocationPath { get; set; }
     }
 }
