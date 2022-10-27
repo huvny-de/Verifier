@@ -474,7 +474,7 @@ namespace Verifier
         {
             string[] httpsProxy;
             NewProxyModel proxyModel = GetProxyModel(apiKey);
-            if (proxyModel.code == 5 & proxyModel.data.next_request >= 59)
+            if (proxyModel.code == 5 & proxyModel.data.next_request >= 58)
             {
                 proxyModel = GetCurrentProxy(apiKey);
                 httpsProxy = proxyModel.data.https.Split(':');
