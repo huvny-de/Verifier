@@ -13,6 +13,7 @@ using System.Security.Principal;
 using Verifier.InputModels;
 using SeleniumUndetectedChromeDriver;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 namespace Verifier
 {
@@ -50,15 +51,16 @@ namespace Verifier
                     break;
                 case 3:
                     InputMenu3();
-                    string[] linkArr = File.ReadAllLines(LinkFilePath);
+                    List<string> linkArr = File.ReadAllLines(LinkFilePath).ToList();
                     int count = 0;
-                    for (int i = 0; i < linkArr.Length; i++)
+                    for (int i = 0; i < linkArr.Count / 4; i++)
                     {
                         count = i + 1;
-                        Console.WriteLine($"Current Index: {i + 1}");
-                        VerifyLink(linkArr[i]);
+                        Console.WriteLine($"Current Index: {i * 4} - {i * 4 + 3}");
+                        List<string> verifyJobs = linkArr.GetRange(i * 4, 4);
+                        VerifyLink(verifyJobs);
                     }
-                    Console.WriteLine($"Job Completed! Total: {count} links. Time: {DateTime.Now}");
+                    Console.WriteLine($"Job Completed! Total: {count * 4} links. Time: {DateTime.Now}");
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
@@ -383,28 +385,36 @@ namespace Verifier
             return filePath;
         }
 
-        public static void VerifyLink(string url)
+        public static void VerifyLink(List<string> listJob)
         {
-            try
+            var httpsProxy = GetHttpsProxy(ApiKey);
+            foreach (var url in listJob)
             {
-                // var extensionUrl = "chrome-extension://ehjabdnjgcjapmdngchpedkjghjfanfn/popup.html";
-                var httpsProxy = GetHttpsProxy(ApiKey);
-                ChromeOptions options = new ChromeOptions();
-                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-                _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
-                _driver.GoToUrl(url);
-                Thread.Sleep(45000);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-            }
-            finally
-            {
-                _driver.Dispose();
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                Thread.Sleep(5000);
+                try
+                {
+                    ChromeOptions options = new ChromeOptions();
+                    options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                    _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                    _driver.GoToUrl(url);
+                    Thread.Sleep(14000);
+                }
+                catch (Exception e)
+                {
+                    if (_driver != null)
+                    {
+                        _driver.Dispose();
+                    }
+                    Console.WriteLine(e);
+                }
+                finally
+                {
+                    if (_driver != null)
+                    {
+                        _driver.Dispose();
+                    }
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
             }
         }
 
