@@ -32,7 +32,8 @@ namespace Verifier
 
         public static void Main(string[] args)
         {
-            Console.Write($"Verifier working on {DateTime.Now}");
+            Console.Write($"Verifier working on {DateTime.Now}\n");
+            Console.WriteLine("Version Customer-Api-2m\n");
             ReadSettingFile();
             GlobalAppInput();
             Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link");
