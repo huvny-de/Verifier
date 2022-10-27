@@ -463,10 +463,23 @@ namespace Verifier
             return proxyModel;
         }
 
+        public static NewProxyModel GetCurrentProxy(string apiKey)
+        {
+            var proxy = TMAPIHelper.GetCurrentProxy(apiKey);
+            NewProxyModel proxyModel = JsonConvert.DeserializeObject<NewProxyModel>(proxy);
+            return proxyModel;
+        }
+
         public static string[] GetHttpsProxy(string apiKey)
         {
             string[] httpsProxy;
             NewProxyModel proxyModel = GetProxyModel(apiKey);
+            if (proxyModel.code == 5 & proxyModel.data.next_request >= 59)
+            {
+                proxyModel = GetCurrentProxy(apiKey);
+                httpsProxy = proxyModel.data.https.Split(':');
+                return httpsProxy;
+            }
             while (!(proxyModel.code == 0))
             {
                 Thread.Sleep(1000);
