@@ -471,9 +471,9 @@ namespace Verifier
             try
             {
                 Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
-                //   var httpsProxy = GetHttpsProxy(ApiKey);
+                var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
-                //  options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
 
                 _driver.Navigate().GoToUrl(inputModel.TargetUrl);
