@@ -129,7 +129,7 @@ namespace Verifier
             Console.WriteLine("Enter Work Time:");
             int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
 
-            Console.Write($"Verifier working on {startTime}");
+            Console.Write($"Verifier working on {startTime}\n");
             for (int i = 0; i < workTimes; i++)
             {
                 var httpsProxy = GetHttpsProxy(ApiKey);
@@ -433,6 +433,7 @@ namespace Verifier
                 _driver.GoToUrl(url);
                 Thread.Sleep(28000);
                 _driver.Dispose();
+                SuccessTimes += 1;
             }
             catch (Exception e)
             {
