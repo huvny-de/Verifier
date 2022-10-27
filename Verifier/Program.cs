@@ -130,6 +130,9 @@ namespace Verifier
             Console.WriteLine("Enter Work Time:");
             int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
 
+            Console.WriteLine("Enter Time Wait for browser load verify url:");
+            WaitLoadVerifyUrl = Convert.ToInt32(Console.ReadLine().Trim());
+
             Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
             {
