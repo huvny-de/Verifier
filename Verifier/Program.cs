@@ -24,6 +24,9 @@ namespace Verifier
         public static string ChromeDriverLocationPath { get; set; }
         public static int RunType { get; set; }
         public static string LinkFilePath { get; set; }
+
+        public static int WaitLoadVerifyUrl { get; set; } = 0;
+
         public static string ApiKey { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
         private static readonly int DF_NAMELENGTH = 5;
@@ -285,6 +288,7 @@ namespace Verifier
             Char postfix = '>';
             var newText = textBody.Split(prefix)[1];
             url = newText.Split(postfix).First();
+            Console.WriteLine(url);
             return url;
         }
 
@@ -413,7 +417,7 @@ namespace Verifier
             try
             {
                 _driver.GoToUrl(url);
-                Thread.Sleep(28000);
+                Thread.Sleep(WaitLoadVerifyUrl * 1000);
                 _driver.Dispose();
             }
             catch (Exception e)
@@ -439,10 +443,22 @@ namespace Verifier
             return proxyModel;
         }
 
+        public static NewProxyModel GetCurrentProxy(string apiKey)
+        {
+            var proxy = TMAPIHelper.GetCurrentProxy(apiKey);
+            NewProxyModel proxyModel = JsonConvert.DeserializeObject<NewProxyModel>(proxy);
+            return proxyModel;
+        }
         public static string[] GetHttpsProxy(string apiKey)
         {
             string[] httpsProxy;
-            NewProxyModel proxyModel = GetProxyModel(apiKey);
+            NewProxyModel proxyModel = GetCurrentProxy(apiKey);
+            if (proxyModel.code == 0 && proxyModel.data.next_request > 0)
+            {
+                httpsProxy = proxyModel.data.https.Split(':');
+                return httpsProxy;
+            }
+            proxyModel = GetProxyModel(apiKey);
             while (!(proxyModel.code == 0))
             {
                 Thread.Sleep(1000);
