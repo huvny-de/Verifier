@@ -130,19 +130,29 @@ namespace Verifier
             Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
             {
-                var inputModel = new CoinTeleGraphIM()
+                var httpsProxy = GetHttpsProxy(ApiKey);
+                for (int j = 0; j < 2; j++)
                 {
-                    Email = GetRandomEmail() + EmailPostfix,
-                    LastName = GenerateName(DF_NAMELENGTH),
-                    Wallet = GenerateWallet(),
-                    FirstName = GenerateName(DF_NAMELENGTH),
-                    TargetUrl = refLink
-                };
-                InputEmail(inputModel);
-                TrackAndReadEmail();
+                    CoinTeleGraphIM inputModel = GetInputModel(refLink);
+                    InputEmail(inputModel, httpsProxy);
+                    TrackAndReadEmail();
+                }
             }
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
+
+        private static CoinTeleGraphIM GetInputModel(string refLink)
+        {
+            return new CoinTeleGraphIM()
+            {
+                Email = GetRandomEmail() + EmailPostfix,
+                LastName = GenerateName(DF_NAMELENGTH),
+                Wallet = GenerateWallet(),
+                FirstName = GenerateName(DF_NAMELENGTH),
+                TargetUrl = refLink
+            };
+        }
+
 
         private static int GetRandomlocation()
         {
@@ -419,6 +429,10 @@ namespace Verifier
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                if (_driver != null)
+                {
+                    _driver.Dispose();
+                }
             }
             finally
             {
@@ -466,22 +480,23 @@ namespace Verifier
             return finalString;
         }
 
-        public static void InputEmail(CoinTeleGraphIM inputModel)
+        public static void InputEmail(CoinTeleGraphIM inputModel, string[] httpsProxy)
         {
             try
             {
                 Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
-                var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
 
                 _driver.Navigate().GoToUrl(inputModel.TargetUrl);
-                Thread.Sleep(2500);
+                Thread.Sleep(3000);
 
-                IWebElement ele = _driver.FindElementWait(By.ClassName("intro-content-buttons-item-text"), 10);
+                IWebElement ele = _driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
                 ele.Click();
-                IWebElement firstNameEle = _driver.FindElementWait(By.Id("form_firstName"), 10);
+                Thread.Sleep(3000);
+
+                IWebElement firstNameEle = _driver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 
