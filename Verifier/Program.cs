@@ -213,11 +213,17 @@ namespace Verifier
                 oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
                 oClient.GetMailInfosParam.BodyContains = searchBody;
                 var mailInfoArr = oClient.GetMailInfos();
-
+                int waitCount = 0;
                 while (mailInfoArr.Count() == 0)
                 {
                     Console.WriteLine("Waiting for mail...");
                     Thread.Sleep(1000);
+                    waitCount++;
+                    if (waitCount > 28)
+                    {
+                        Console.WriteLine("Wait for email time out... Re-starting...");
+                        return;
+                    }
                     mailInfoArr = oClient.GetMailInfos();
                 }
                 MailInfo info = mailInfoArr[0];
