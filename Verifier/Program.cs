@@ -12,11 +12,7 @@ using Verifier.Models;
 using System.Security.Principal;
 using Verifier.InputModels;
 using SeleniumUndetectedChromeDriver;
-using System.Collections.Generic;
-using System.Net.Http;
 using Newtonsoft.Json;
-using System.Threading.Tasks;
-using OpenQA.Selenium.Support.UI;
 
 namespace Verifier
 {
@@ -416,10 +412,9 @@ namespace Verifier
         {
             try
             {
-                //_driver.FindElement(By.CssSelector("body")).SendKeys(Keys.Control + "t");
-                //_driver.SwitchTo().Window(_driver.WindowHandles.Last());
                 _driver.GoToUrl(url);
                 Thread.Sleep(28000);
+                _driver.Dispose();
             }
             catch (Exception e)
             {
@@ -427,7 +422,10 @@ namespace Verifier
             }
             finally
             {
-                _driver.Dispose();
+                if (_driver != null)
+                {
+                    _driver.Dispose();
+                }
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
             }
@@ -506,6 +504,10 @@ namespace Verifier
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                if (_driver != null)
+                {
+                    _driver.Dispose();
+                }
             }
         }
 
