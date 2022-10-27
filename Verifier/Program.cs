@@ -206,12 +206,12 @@ namespace Verifier
         {
             try
             {
-                string searchKey = "Verify your email address (Trial Version)";
+                string searchBody = "Click the button below to verify your email address and join the waitlist.";
                 MailClient oClient = GetMailClient();
 
                 oClient.GetMailInfosParam.Reset();
                 oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
-                oClient.GetMailInfosParam.SubjectContains = searchKey;
+                oClient.GetMailInfosParam.BodyContains = searchBody;
                 var mailInfoArr = oClient.GetMailInfos();
 
                 while (mailInfoArr.Count() == 0)
@@ -410,10 +410,10 @@ namespace Verifier
         {
             try
             {
-                _driver.FindElement(By.CssSelector("body")).SendKeys(Keys.Control + "t");
-                _driver.SwitchTo().Window(_driver.WindowHandles.Last());
+                //_driver.FindElement(By.CssSelector("body")).SendKeys(Keys.Control + "t");
+                //_driver.SwitchTo().Window(_driver.WindowHandles.Last());
                 _driver.GoToUrl(url);
-                Thread.Sleep(45000);
+                Thread.Sleep(28000);
             }
             catch (Exception e)
             {
@@ -424,7 +424,6 @@ namespace Verifier
                 _driver.Dispose();
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                Thread.Sleep(5000);
             }
         }
 
@@ -498,7 +497,7 @@ namespace Verifier
 
                 IWebElement submitBtn = _driver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
-                Thread.Sleep(3000);
+                Thread.Sleep(2000);
             }
             catch (Exception e)
             {
