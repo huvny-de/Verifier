@@ -25,6 +25,7 @@ namespace Verifier
         public static int RunType { get; set; }
         public static string LinkFilePath { get; set; }
         public static string ApiKey { get; set; }
+        public static int SuccessTimes { get; set; } = 0;
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
         private static readonly int DF_NAMELENGTH = 5;
         public static UndetectedChromeDriver _driver;
@@ -121,13 +122,14 @@ namespace Verifier
 
         private static void AutoRefAndVerify()
         {
+            var startTime = DateTime.Now;
             Console.WriteLine("Enter Ref Link:");
             string refLink = Console.ReadLine().Trim();
 
             Console.WriteLine("Enter Work Time:");
             int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
 
-            Console.Write($"Verifier working on {DateTime.Now}");
+            Console.Write($"Verifier working on {startTime}");
             for (int i = 0; i < workTimes; i++)
             {
                 var httpsProxy = GetHttpsProxy(ApiKey);
@@ -138,7 +140,8 @@ namespace Verifier
                     TrackAndReadEmail();
                 }
             }
-            Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
+            var runTimes = DateTime.Now.Subtract(startTime);
+            Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}\nTotal {SuccessTimes} Success\nTotal Run Time: {runTimes.Days}d {runTimes.Hours}hrs {runTimes.Minutes}m {runTimes.Seconds}s");
         }
 
         private static CoinTeleGraphIM GetInputModel(string refLink)
@@ -210,6 +213,11 @@ namespace Verifier
 
         private static void TrackAndReadEmail()
         {
+            if (_driver == null)
+            {
+                Console.WriteLine("Driver closed before!");
+                return;
+            }
             try
             {
                 string searchBody = "Click the button below to verify your email address and join the waitlist.";
