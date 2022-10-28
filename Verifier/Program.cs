@@ -25,6 +25,9 @@ namespace Verifier
         public static int RunType { get; set; }
         public static string LinkFilePath { get; set; }
 
+
+        public static int TotalRefFailed { get; set; } = 0;
+        public static int TotalRefSuccess { get; set; } = 0;
         public static int WaitLoadVerifyUrl { get; set; } = 0;
 
         public static string ApiKey { get; set; }
@@ -32,22 +35,26 @@ namespace Verifier
         private static readonly int DF_NAMELENGTH = 5;
         public static UndetectedChromeDriver _driver;
 
+
         public static void Main(string[] args)
         {
             Console.Write($"Verifier working on {DateTime.Now}");
+            var startTime = DateTime.Now;
             ReadSettingFile();
             GlobalAppInput();
-            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link");
+            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link\n4. Auto Ref\n5. Verify Link");
             RunType = Convert.ToInt32(Console.ReadLine().Trim());
             switch (RunType)
             {
                 case 1:
                     AutoRefAndVerify();
+                    LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
                 case 2:
                     GetAllOldLink();
+                    LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
@@ -62,6 +69,26 @@ namespace Verifier
                         VerifyLink(linkArr[i]);
                     }
                     Console.WriteLine($"Job Completed! Total: {count} links. Time: {DateTime.Now}");
+                    LogRunTime(startTime);
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                    break;
+                case 4:
+                    AutoRef();
+                    LogRunTime(startTime);
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                    break;
+                case 5:
+                    Console.WriteLine("Enter VerifyLink Path: ");
+                    string path = Console.ReadLine().Trim();
+                    string[] allLinks = File.ReadAllLines(path);
+                    Console.WriteLine($"Total {allLinks.Length} links.");
+                    foreach (var url in allLinks)
+                    {
+                        VerifyLink(url);
+                    }
+                    LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
@@ -71,6 +98,12 @@ namespace Verifier
                     Environment.Exit(0);
                     break;
             }
+        }
+
+        private static void LogRunTime(DateTime startTime)
+        {
+            var runTimes = DateTime.Now.Subtract(startTime);
+            LogWithColor($"Total Run Time: {runTimes.Days}d {runTimes.Hours}hrs {runTimes.Minutes}m {runTimes.Seconds}s", ConsoleColor.DarkGreen);
         }
 
         private static void InputMenu3()
@@ -148,6 +181,37 @@ namespace Verifier
                 TrackAndReadEmail();
             }
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
+        }
+
+        private static void AutoRef()
+        {
+            Console.WriteLine("Enter Ref Link:");
+            string refLink = Console.ReadLine().Trim();
+
+            Console.WriteLine("Enter Work Time:");
+            int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
+
+            Console.Write($"Verifier working on {DateTime.Now}");
+            for (int i = 0; i < workTimes; i++)
+            {
+                var inputModel = new CoinTeleGraphIM()
+                {
+                    Email = GetRandomEmail() + EmailPostfix,
+                    LastName = GenerateName(DF_NAMELENGTH),
+                    Wallet = GenerateWallet(),
+                    FirstName = GenerateName(DF_NAMELENGTH),
+                    TargetUrl = refLink
+                };
+                InputEmail(inputModel);
+            }
+            LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
+            LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
+        }
+
+        public static void LogWithColor(string value, ConsoleColor color = ConsoleColor.White)
+        {
+            Console.ForegroundColor = color;
+            Console.WriteLine(value);
         }
 
         private static int GetRandomlocation()
@@ -291,7 +355,7 @@ namespace Verifier
             Char postfix = '>';
             var newText = textBody.Split(prefix)[1];
             url = newText.Split(postfix).First();
-            Console.WriteLine(url);
+            LogWithColor(url, ConsoleColor.DarkBlue);
             return url;
         }
 
@@ -400,7 +464,8 @@ namespace Verifier
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
                 _driver.GoToUrl(url);
-                Thread.Sleep(45000);
+                Thread.Sleep(15000);
+
             }
             catch (Exception e)
             {
@@ -411,7 +476,6 @@ namespace Verifier
                 _driver.Dispose();
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
-                Thread.Sleep(5000);
             }
         }
 
@@ -494,13 +558,14 @@ namespace Verifier
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _driver.GoToUrl(inputModel.TargetUrl);
+                Thread.Sleep(5200);
 
-                _driver.Navigate().GoToUrl(inputModel.TargetUrl);
-                Thread.Sleep(2500);
-
-                IWebElement ele = _driver.FindElementWait(By.ClassName("intro-content-buttons-item-text"), 10);
+                IWebElement ele = _driver.FindElement(By.ClassName("intro-content-buttons-item-text"));
                 ele.Click();
-                IWebElement firstNameEle = _driver.FindElementWait(By.Id("form_firstName"), 10);
+                Thread.Sleep(3000);
+
+                IWebElement firstNameEle = _driver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 
@@ -519,10 +584,14 @@ namespace Verifier
                 IWebElement submitBtn = _driver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
                 Thread.Sleep(2000);
+                TotalRefSuccess += 1;
+                _driver.Dispose();
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                Console.WriteLine(e.Message);
+                TotalRefFailed += 1;
+                Console.WriteLine($"Total Ref Failed: {TotalRefFailed}");
                 if (_driver != null)
                 {
                     _driver.Dispose();
