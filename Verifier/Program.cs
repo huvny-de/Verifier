@@ -29,10 +29,11 @@ namespace Verifier
         public static int TotalVerFailed { get; set; } = 0;
         public static int TotalVerSuccess { get; set; } = 0;
         public static int WaitLoadVerifyUrl { get; set; } = 0;
-
         public static string ApiKey { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
         private static readonly int DF_NAMELENGTH = 5;
+        public static readonly string FailedLinksFileName = "LinksFailed" + GetRandomEmail() + GenerateName(8);
+        public static readonly string VerifyLinksFileName = "VerifyLinks";
         public static UndetectedChromeDriver _undetectedDriver;
         public static IWebDriver _webDriver;
 
@@ -86,15 +87,12 @@ namespace Verifier
                 case 5:
                     Console.WriteLine("Enter VerifyLink Path: ");
                     string path = Console.ReadLine().Trim();
-                    string[] allLinks = File.ReadAllLines(path);
-                    Console.WriteLine($"Total {allLinks.Length} links.");
-                    foreach (var url in allLinks)
-                    {
-                        VerifyLink(url);
-                    }
-                    LogWithColor($"Auto Verify Completed! Time: {DateTime.Now}\nTotal Verify Succeed: {TotalVerSuccess}", ConsoleColor.DarkGreen);
-                    LogWithColor($"Total Verify Failed: {TotalVerFailed}", ConsoleColor.DarkRed);
-                    LogRunTime(startTime);
+                    VerifyAllSetup(startTime, path);
+
+                    string pathFailed = CreateOrUpdateFile(FailedLinksFileName);
+                    VerifyAllSetup(DateTime.Now, pathFailed, true);
+                    File.Delete(pathFailed);
+
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
@@ -103,6 +101,30 @@ namespace Verifier
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
+            }
+        }
+
+        private static void VerifyAllSetup(DateTime startTime, string path, bool isReVer = false)
+        {
+            string[] allLinks = File.ReadAllLines(path);
+            TotalVerSuccess = 0;
+            TotalVerFailed = 0;
+            VerifyAllLink(allLinks, isReVer);
+            LogWithColor($"Auto Verify Completed! Time: {DateTime.Now}\nTotal Verify Succeed: {TotalVerSuccess}", ConsoleColor.DarkGreen);
+            LogWithColor($"Total Verify Failed: {TotalVerFailed}", ConsoleColor.DarkRed);
+            LogRunTime(startTime);
+        }
+
+        public static void VerifyAllLink(string[] linkList, bool reVer = false)
+        {
+            if (reVer)
+            {
+                Console.WriteLine($"Re-Verifing Failed Links");
+            }
+            Console.WriteLine($"Total {linkList.Length} links.");
+            foreach (var url in linkList)
+            {
+                VerifyLink(url);
             }
         }
 
@@ -117,7 +139,7 @@ namespace Verifier
             var linkPerFile = totalLinks.Count / fileCount;
             for (int i = 0; i < fileCount; i++)
             {
-                string linkFilePath = CreateOrUpdateFile("VerifyLinks" + (i + 1));
+                string linkFilePath = CreateOrUpdateFile(VerifyLinksFileName + (i + 1));
                 string[] content = totalLinks.GetRange(i * linkPerFile, linkPerFile).ToArray();
                 if (i == fileCount - 1)
                 {
@@ -421,6 +443,17 @@ namespace Verifier
             return filePath;
         }
 
+        public static string SaveUrl(string url, string fileName)
+        {
+            var filePath = CreateOrUpdateFile(fileName);
+            using (StreamWriter writer = new StreamWriter(filePath, append: true))
+            {
+                writer.WriteLine(url, 0, url.Length);
+                writer.Close();
+            }
+            return filePath;
+        }
+
         public static void GetAllOldLink()
         {
             try
@@ -453,7 +486,7 @@ namespace Verifier
                     if (oMail.Subject.Contains(param))
                     {
                         var url = GetVerifyLink(oMail.TextBody);
-                        WriteLink(url);
+                        SaveUrl(url, VerifyLinksFileName);
                         count++;
                     }
                     Console.WriteLine("To: {0}", oMail.To.ToString());
@@ -471,17 +504,6 @@ namespace Verifier
             }
         }
 
-        public static string WriteLink(string url)
-        {
-            var filePath = CreateOrUpdateFile();
-            using (StreamWriter writer = new StreamWriter(filePath, append: true))
-            {
-                writer.WriteLine(url, 0, url.Length);
-                writer.Close();
-            }
-            return filePath;
-        }
-
         public static void VerifyLink(string url)
         {
             try
@@ -491,16 +513,17 @@ namespace Verifier
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
                 _undetectedDriver.GoToUrl(url);
-                Thread.Sleep(15000);
+                Thread.Sleep(20000);
                 if (_undetectedDriver.Url.Contains("cointelegraph"))
                 {
                     TotalVerSuccess += 1;
-                    LogWithColor($"Verify Succeed!\nTotal Verify Succeed{TotalVerSuccess}", ConsoleColor.DarkGreen);
+                    LogWithColor($"Verify Succeed!\nTotal Verify Succeed: {TotalVerSuccess}", ConsoleColor.DarkGreen);
                 }
                 else
                 {
                     TotalVerFailed += 1;
-                    LogWithColor($"Verify Failed!\nTotal Verify Failed{TotalVerFailed}", ConsoleColor.DarkRed);
+                    LogWithColor($"Verify Failed!\nTotal Verify Failed: {TotalVerFailed}", ConsoleColor.DarkRed);
+                    SaveUrl(url, FailedLinksFileName);
                 }
             }
             catch (Exception e)
