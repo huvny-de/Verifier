@@ -51,7 +51,7 @@ namespace Verifier
                     Environment.Exit(0);
                     break;
                 case 2:
-                    // GetAllOldLink();
+                    GetAllOldLink();
                     Console.WriteLine("Enter number of file you want: ");
                     int fileCount = Convert.ToInt32(Console.ReadLine().Trim());
                     SplitLinkFile(fileCount);
