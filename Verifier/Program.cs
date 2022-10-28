@@ -24,8 +24,6 @@ namespace Verifier
         public static string ChromeDriverLocationPath { get; set; }
         public static int RunType { get; set; }
         public static string LinkFilePath { get; set; }
-
-
         public static int TotalRefFailed { get; set; } = 0;
         public static int TotalRefSuccess { get; set; } = 0;
         public static int WaitLoadVerifyUrl { get; set; } = 0;
@@ -38,7 +36,7 @@ namespace Verifier
 
         public static void Main(string[] args)
         {
-            Console.Write($"Verifier working on {DateTime.Now}");
+            Console.Write($"Verifier working on {DateTime.Now}\n");
             var startTime = DateTime.Now;
             ReadSettingFile();
             GlobalAppInput();
@@ -53,7 +51,10 @@ namespace Verifier
                     Environment.Exit(0);
                     break;
                 case 2:
-                    GetAllOldLink();
+                    // GetAllOldLink();
+                    Console.WriteLine("Enter number of file you want: ");
+                    int fileCount = Convert.ToInt32(Console.ReadLine().Trim());
+                    SplitLinkFile(fileCount);
                     LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
@@ -97,6 +98,28 @@ namespace Verifier
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
+            }
+        }
+
+        private static void SplitLinkFile(int fileCount)
+        {
+            var filePath = CreateOrUpdateFile();
+            var totalLinks = File.ReadAllLines(filePath).ToList();
+            if (totalLinks.Count < fileCount)
+            {
+                LogWithColor($"Number of file larger than total links.", ConsoleColor.DarkRed);
+            }
+            var linkPerFile = totalLinks.Count / fileCount;
+            for (int i = 0; i < fileCount; i++)
+            {
+                string linkFilePath = CreateOrUpdateFile("VerifyLinks" + (i + 1));
+                string[] content = totalLinks.GetRange(i * linkPerFile, linkPerFile).ToArray();
+                if (i == fileCount - 1)
+                {
+                    content = totalLinks.Skip(i * linkPerFile).ToArray();
+                }
+                Console.WriteLine($"Content Count: {content.Length}");
+                File.WriteAllLines(linkFilePath, content);
             }
         }
 
@@ -375,19 +398,20 @@ namespace Verifier
             return rs;
         }
 
-        public static string CreateOrUpdateFile()
+        public static string CreateOrUpdateFile(string fileName = "VerifyLinks")
         {
-            string localPath = string.Format("{0}\\VerifyLinks", Directory.GetCurrentDirectory());
+            string localPath = string.Format("{0}\\{1}", Directory.GetCurrentDirectory(), fileName);
             if (!Directory.Exists(localPath))
             {
                 Directory.CreateDirectory(localPath);
             }
-            string filePath = string.Format("{0}\\VerifyLinks\\VerifyLinks.txt", Directory.GetCurrentDirectory());
+            string filePath = string.Format("{0}\\VerifyLinks\\{1}.txt", Directory.GetCurrentDirectory(), fileName);
             if (!File.Exists(filePath))
             {
                 FileStream fileStream = File.Create(filePath);
                 fileStream.Close();
             }
+            Console.WriteLine($"Path: {filePath}");
             return filePath;
         }
 
@@ -425,8 +449,6 @@ namespace Verifier
                         var url = GetVerifyLink(oMail.TextBody);
                         WriteLink(url);
                         count++;
-                        // program.VerifyLink(url);
-
                     }
                     Console.WriteLine("To: {0}", oMail.To.ToString());
                     if (!info.Read)
