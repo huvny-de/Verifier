@@ -44,7 +44,7 @@ namespace Verifier
             var startTime = DateTime.Now;
             ReadSettingFile();
             GlobalAppInput();
-            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link\n4. Auto Ref\n5. Verify Link");
+            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link\n4. Auto Ref\n5. Verify Link\n6. Auto Ref Multiples Link");
             RunType = Convert.ToInt32(Console.ReadLine().Trim());
             switch (RunType)
             {
@@ -79,7 +79,11 @@ namespace Verifier
                     Environment.Exit(0);
                     break;
                 case 4:
-                    AutoRef();
+                    Console.WriteLine("Enter Ref Link:");
+                    string refLink = Console.ReadLine().Trim();
+                    Console.WriteLine("Enter Work Time:");
+                    int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
+                    AutoRef(refLink, workTimes);
                     LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
@@ -88,11 +92,31 @@ namespace Verifier
                     Console.WriteLine("Enter VerifyLink Path: ");
                     string path = Console.ReadLine().Trim();
                     VerifyAllSetup(startTime, path);
-
                     string pathFailed = CreateOrUpdateFile(FailedLinksFileName);
                     VerifyAllSetup(DateTime.Now, pathFailed, true);
                     File.Delete(pathFailed);
 
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                    break;
+                case 6:
+                    Console.WriteLine("Enter RefLinkList Path:");
+                    string refLinkListPath = Console.ReadLine().Trim();
+                    string[] allRefLink = File.ReadAllLines(refLinkListPath);
+                    if (allRefLink.Length == 0)
+                    {
+                        LogWithColor("File empty", ConsoleColor.DarkRed);
+                    }
+                    Console.WriteLine("Enter work time per link:");
+                    int workPerLink = Convert.ToInt32(Console.ReadLine().Trim());
+                    foreach (var link in allRefLink)
+                    {
+                        for (int i = 0; i < workPerLink; i++)
+                        {
+                            AutoRef(link, workPerLink);
+                        }
+                    }
+                    LogRunTime(startTime);
                     Console.ReadKey();
                     Environment.Exit(0);
                     break;
@@ -166,8 +190,6 @@ namespace Verifier
         {
             Console.WriteLine("Enter Proxy Api:");
             ApiKey = Console.ReadLine().Trim();
-            Console.WriteLine("Enter Driver Path:");
-            ChromeDriverLocationPath = Console.ReadLine().Trim();
         }
 
         public static void ReadSettingFile()
@@ -233,14 +255,8 @@ namespace Verifier
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
 
-        private static void AutoRef()
+        private static void AutoRef(string refLink, int workTimes)
         {
-            Console.WriteLine("Enter Ref Link:");
-            string refLink = Console.ReadLine().Trim();
-
-            Console.WriteLine("Enter Work Time:");
-            int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
-
             Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
             {
@@ -277,6 +293,7 @@ namespace Verifier
             EmailPostfix = customConfig.EmailPostFix;
             Console.WriteLine("Email Postfix: " + EmailPostfix);
             ChromeLocationPath = customConfig.ChromeLocationPath;
+            ChromeDriverLocationPath = Directory.GetCurrentDirectory();
         }
 
         private static void MappingConfig(CustomConfigModel customConfig)
@@ -426,6 +443,20 @@ namespace Verifier
             return rs;
         }
 
+        public static void DeleteFile(string fileName = "VerifyLinks")
+        {
+            string localPath = string.Format("{0}\\{1}", Directory.GetCurrentDirectory(), fileName);
+            if (!Directory.Exists(localPath))
+            {
+                Directory.CreateDirectory(localPath);
+            }
+            string filePath = string.Format("{0}\\VerifyLinks\\{1}.txt", Directory.GetCurrentDirectory(), fileName);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+            }
+        }
+
         public static string CreateOrUpdateFile(string fileName = "VerifyLinks")
         {
             string localPath = string.Format("{0}\\{1}", Directory.GetCurrentDirectory(), fileName);
@@ -511,7 +542,7 @@ namespace Verifier
                 var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath + @"\chromedriver.exe", browserExecutablePath: ChromeLocationPath);
                 _undetectedDriver.GoToUrl(url);
                 Thread.Sleep(20000);
                 if (_undetectedDriver.Url.Contains("cointelegraph"))
@@ -616,7 +647,7 @@ namespace Verifier
                 var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath + @"\chromedriver.exe", browserExecutablePath: ChromeLocationPath);
                 _undetectedDriver.GoToUrl(inputModel.TargetUrl);
                 Thread.Sleep(5200);
 
@@ -662,38 +693,32 @@ namespace Verifier
         {
             try
             {
-                Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\n Wallet: {inputModel.Wallet} \\n");
+                Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\nWallet: {inputModel.Wallet}\n");
                 var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
                 options.BinaryLocation = ChromeLocationPath;
                 _webDriver = new ChromeDriver(ChromeDriverLocationPath, options);
                 _webDriver.Navigate().GoToUrl(inputModel.TargetUrl);
-                Thread.Sleep(5200);
+                Thread.Sleep(5000);
+                ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
 
-                IWebElement ele = _webDriver.FindElement(By.ClassName("intro-content-buttons-item-text"));
-                ele.Click();
                 Thread.Sleep(3000);
-
                 IWebElement firstNameEle = _webDriver.FindElement(By.Id("form_firstName"));
                 firstNameEle.SendKeys(inputModel.FirstName);
-                Thread.Sleep(200);
 
                 IWebElement lastNameEle = _webDriver.FindElement(By.Id("form_lastname"));
                 lastNameEle.SendKeys(inputModel.LastName);
-                Thread.Sleep(200);
 
                 IWebElement emailEle = _webDriver.FindElement(By.Id("form_email"));
                 emailEle.SendKeys(inputModel.Email);
-                Thread.Sleep(200);
 
                 IWebElement ercWalletEle = _webDriver.FindElement(By.Id("extraField_0"));
                 ercWalletEle.SendKeys(inputModel.Wallet);
-                Thread.Sleep(200);
 
                 IWebElement submitBtn = _webDriver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
-                Thread.Sleep(2000);
+                Thread.Sleep(1000);
                 TotalRefSuccess += 1;
                 _webDriver.Dispose();
             }
