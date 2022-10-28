@@ -240,6 +240,7 @@ namespace Verifier
         {
             Console.ForegroundColor = color;
             Console.WriteLine(value);
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         private static int GetRandomlocation()
