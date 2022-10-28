@@ -611,9 +611,9 @@ namespace Verifier
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                LogWithColor(e.Message, ConsoleColor.DarkRed);
                 TotalRefFailed += 1;
-                Console.WriteLine($"Total Ref Failed: {TotalRefFailed}");
+                LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
                 if (_driver != null)
                 {
                     _driver.Dispose();
