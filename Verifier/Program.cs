@@ -13,6 +13,9 @@ using System.Security.Principal;
 using Verifier.InputModels;
 using SeleniumUndetectedChromeDriver;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using Verifier.Extensions;
 
 namespace Verifier
 {
@@ -37,95 +40,105 @@ namespace Verifier
         public static UndetectedChromeDriver _undetectedDriver;
         public static IWebDriver _webDriver;
 
-
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             Console.Write($"Verifier working on {DateTime.Now}\n");
             var startTime = DateTime.Now;
             ReadSettingFile();
             GlobalAppInput();
-            Console.WriteLine("Choose Run Type:\n1. Auto Ref And Verify\n2. Get Verify Link\n3. Verify All Link\n4. Auto Ref\n5. Verify Link\n6. Auto Ref Multiples Link");
-            RunType = Convert.ToInt32(Console.ReadLine().Trim());
-            switch (RunType)
-            {
-                case 1:
-                    AutoRefAndVerify();
-                    LogRunTime(startTime);
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                case 2:
-                    GetAllOldLink();
-                    Console.WriteLine("Enter number of file you want: ");
-                    int fileCount = Convert.ToInt32(Console.ReadLine().Trim());
-                    SplitLinkFile(fileCount);
-                    LogRunTime(startTime);
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                case 3:
-                    InputMenu3();
-                    string[] linkArr = File.ReadAllLines(LinkFilePath);
-                    int count = 0;
-                    for (int i = 0; i < linkArr.Length; i++)
-                    {
-                        count = i + 1;
-                        Console.WriteLine($"Current Index: {i + 1}");
-                        VerifyLink(linkArr[i]);
-                    }
-                    Console.WriteLine($"Job Completed! Total: {count} links. Time: {DateTime.Now}");
-                    LogRunTime(startTime);
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                case 4:
-                    Console.WriteLine("Enter Ref Link:");
-                    string refLink = Console.ReadLine().Trim();
-                    Console.WriteLine("Enter Work Time:");
-                    int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
-                    AutoRef(refLink, workTimes);
-                    LogRunTime(startTime);
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                case 5:
-                    Console.WriteLine("Enter VerifyLink Path: ");
-                    string path = Console.ReadLine().Trim();
-                    VerifyAllSetup(startTime, path);
-                    string pathFailed = CreateOrUpdateFile(FailedLinksFileName);
-                    VerifyAllSetup(DateTime.Now, pathFailed, true);
-                    File.Delete(pathFailed);
+            await Menu(startTime);
+            Environment.Exit(0);
+        }
 
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                case 6:
-                    Console.WriteLine("Enter RefLinkList Path:");
-                    string refLinkListPath = Console.ReadLine().Trim();
-                    string[] allRefLink = File.ReadAllLines(refLinkListPath);
-                    if (allRefLink.Length == 0)
-                    {
-                        LogWithColor("File empty", ConsoleColor.DarkRed);
-                    }
-                    Console.WriteLine("Enter work time per link:");
-                    int workPerLink = Convert.ToInt32(Console.ReadLine().Trim());
-                    foreach (var link in allRefLink)
-                    {
-                        for (int i = 0; i < workPerLink; i++)
+        private static Task Menu(DateTime startTime)
+        {
+            do
+            {
+                Console.WriteLine("Choose Run Type:\n" +
+                    "1. Auto Ref And Verify\n" +
+                    "2. Get Verify Link\n" +
+                    "3. Verify All Link\n" +
+                    "4. Auto Ref\n" +
+                    "5. Verify Link\n" +
+                    "6. Auto Ref Multiples Link\n" +
+                    "7. Exit\n" +
+                    "8. Reg new main acc" +
+                    "");
+                RunType = Convert.ToInt32(Console.ReadLine().Trim());
+                switch (RunType)
+                {
+                    case 1:
+                        AutoRefAndVerify();
+                        LogRunTime(startTime);
+                        break;
+                    case 2:
+                        // await GetAllOldLinkAsync();
+                        GetAllOldLink();
+                        Console.WriteLine("Enter number of file you want: ");
+                        int fileCount = Convert.ToInt32(Console.ReadLine().Trim());
+                        SplitLinkFile(fileCount);
+                        LogRunTime(startTime);
+                        break;
+                    case 3:
+                        InputMenu3();
+                        string[] linkArr = File.ReadAllLines(LinkFilePath);
+                        int count = 0;
+                        for (int i = 0; i < linkArr.Length; i++)
                         {
+                            count = i + 1;
+                            Console.WriteLine($"Current Index: {i + 1}");
+                            VerifyLink(linkArr[i]);
+                        }
+                        Console.WriteLine($"Job Completed! Total: {count} links. Time: {DateTime.Now}");
+                        LogRunTime(startTime);
+                        break;
+                    case 4:
+                        Console.WriteLine("Enter Ref Link:");
+                        string refLink = Console.ReadLine().Trim();
+                        Console.WriteLine("Enter Work Time:");
+                        int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
+                        AutoRef(refLink, workTimes);
+                        LogRunTime(startTime);
+                        break;
+                    case 5:
+                        Console.WriteLine("Enter VerifyLink Path: ");
+                        string path = Console.ReadLine().Trim();
+                        VerifyAllSetup(startTime, path);
+                        string pathFailed = CreateOrUpdateFile(FailedLinksFileName);
+                        VerifyAllSetup(DateTime.Now, pathFailed, true);
+                        File.Delete(pathFailed);
+                        break;
+                    case 6:
+                        Console.WriteLine("Enter RefLinkList Path:");
+                        string refLinkListPath = Console.ReadLine().Trim();
+                        string[] allRefLink = File.ReadAllLines(refLinkListPath);
+                        if (allRefLink.Length == 0)
+                        {
+                            LogWithColor("File empty", ConsoleColor.DarkRed);
+                        }
+                        Console.WriteLine("Enter work time per link:");
+                        int workPerLink = Convert.ToInt32(Console.ReadLine().Trim());
+                        foreach (var link in allRefLink)
+                        {
+                            int count2 = 1;
+                            LogWithColor($"Current Link Index: {count2}", ConsoleColor.DarkBlue);
+                            count2++;
                             AutoRef(link, workPerLink);
                         }
-                    }
-                    LogRunTime(startTime);
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-                default:
-                    Console.WriteLine("Use your eyes!");
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                    break;
-            }
+                        LogRunTime(startTime);
+                        break;
+                    case 8:
+                        Console.WriteLine("Enter number of wallet");
+                        int number = Convert.ToInt32(Console.ReadLine().Trim());
+                        List<string> values = GenerateWalletAndPrivateKeyAsync(number);
+                        string p = CreateOrUpdateFile("walletAddress");
+                        File.AppendAllLines(p, values);
+                        break;
+                    default:
+                        break;
+                }
+            } while (RunType != 7);
+            return Task.CompletedTask;
         }
 
         private static void VerifyAllSetup(DateTime startTime, string path, bool isReVer = false)
@@ -163,7 +176,7 @@ namespace Verifier
             var linkPerFile = totalLinks.Count / fileCount;
             for (int i = 0; i < fileCount; i++)
             {
-                string linkFilePath = CreateOrUpdateFile(VerifyLinksFileName + (i + 1));
+                string linkFilePath = CreateOrUpdateFile(VerifyLinksFileName + (i + 1), true);
                 string[] content = totalLinks.GetRange(i * linkPerFile, linkPerFile).ToArray();
                 if (i == fileCount - 1)
                 {
@@ -457,7 +470,7 @@ namespace Verifier
             }
         }
 
-        public static string CreateOrUpdateFile(string fileName = "VerifyLinks")
+        public static string CreateOrUpdateFile(string fileName = "VerifyLinks", bool shoudNew = false)
         {
             string localPath = string.Format("{0}\\{1}", Directory.GetCurrentDirectory(), fileName);
             if (!Directory.Exists(localPath))
@@ -465,6 +478,10 @@ namespace Verifier
                 Directory.CreateDirectory(localPath);
             }
             string filePath = string.Format("{0}\\VerifyLinks\\{1}.txt", Directory.GetCurrentDirectory(), fileName);
+            if (File.Exists(filePath) && shoudNew)
+            {
+                File.Delete(filePath);
+            }
             if (!File.Exists(filePath))
             {
                 FileStream fileStream = File.Create(filePath);
@@ -487,6 +504,12 @@ namespace Verifier
 
         public static void GetAllOldLink()
         {
+            string title = ("Do you want to delete old VerifyLinks.txt file?");
+            var isYes = Confirm(title);
+            if (isYes)
+            {
+                DeleteFile(VerifyLinksFileName);
+            }
             try
             {
                 MailServer oServer = new MailServer(EmailConfig.SmtpServer,
@@ -497,15 +520,12 @@ namespace Verifier
                     SSLConnection = true,
                     Port = EmailConfig.Port
                 };
+                string searchKey = "Verify your email address";
                 MailClient oClient = new MailClient("TryIt");
                 oClient.Connect(oServer);
                 oClient.GetMailInfosParam.Reset();
-                oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.NewOnly;
-                //oClient.GetMailInfosParam.GetMailInfosOptions = GetMailInfosOptionType.OrderByDateTime;
-                //oClient.GetMailInfosParam.DateRange.SINCE = System.DateTime.Now.AddHours(-3.5);
-                //oClient.GetMailInfosParam.DateRange.BEFORE = System.DateTime.Now;
+                oClient.GetMailInfosParam.SubjectOrBodyContains = searchKey;
                 MailInfo[] infos = oClient.GetMailInfos();
-                string param = "Verify your email address (Trial Version)";
                 Console.WriteLine("Total {0} all email(s)\r\n", infos.Length);
                 int count = 0;
                 for (int j = 0; j < infos.Length; j++)
@@ -514,7 +534,7 @@ namespace Verifier
                     Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
                         info.Index, info.Size, info.UIDL);
                     Mail oMail = oClient.GetMail(info);
-                    if (oMail.Subject.Contains(param))
+                    if (oMail.Subject.Contains(searchKey))
                     {
                         var url = GetVerifyLink(oMail.TextBody);
                         SaveUrl(url, VerifyLinksFileName);
@@ -532,6 +552,87 @@ namespace Verifier
             catch (Exception ep)
             {
                 Console.WriteLine(ep.Message);
+            }
+        }
+
+        public static bool Confirm(string title)
+        {
+            ConsoleKey response;
+            do
+            {
+                Console.Write($"{title} [y/n] ");
+                response = Console.ReadKey(false).Key;
+                if (response != ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                }
+            } while (response != ConsoleKey.Y && response != ConsoleKey.N);
+
+            return (response == ConsoleKey.Y);
+        }
+
+        public static async Task GetAllOldLinkAsync()
+        {
+            string title = ("Do you want to delete old VerifyLinks.txt file?");
+            var isYes = Confirm(title);
+            if (isYes)
+            {
+                DeleteFile(VerifyLinksFileName);
+            }
+            try
+            {
+                MailServer oServer = new MailServer(EmailConfig.SmtpServer,
+                                EmailConfig.Email,
+                                EmailConfig.Password,
+                                ServerProtocol.Imap4)
+                {
+                    SSLConnection = true,
+                    Port = EmailConfig.Port
+                };
+                string searchKey = "Verify your email address";
+                MailClient oClient = new MailClient("TryIt");
+                oClient.Connect(oServer);
+                oClient.GetMailInfosParam.Reset();
+                oClient.GetMailInfosParam.SubjectOrBodyContains = searchKey;
+                MailInfo[] infos = oClient.GetMailInfos();
+                Console.WriteLine("Total {0} all email(s)\r\n", infos.Length);
+                int count = 0;
+                for (int j = 0; j < infos.Length; j++)
+                {
+                    count = await ReadMailAsync(searchKey, oClient, infos, count, j);
+                }
+                oClient.Quit();
+                Console.WriteLine($"Completed! Total: {count} Links. Time: {DateTime.Now}");
+            }
+            catch (Exception ep)
+            {
+                Console.WriteLine(ep.Message);
+            }
+        }
+
+        private static async Task<int> ReadMailAsync(string searchKey, MailClient oClient, MailInfo[] infos, int count, int j)
+        {
+            try
+            {
+                MailInfo info = infos[j];
+                Console.WriteLine("Index: {0}; Size: {1}; UIDL: {2}",
+                    info.Index, info.Size, info.UIDL);
+
+                Mail oMail = await Task.Run(() => oClient.GetMail(info));
+                var url = await Task.Run(() => GetVerifyLink(oMail.TextBody));
+                await Task.Run(() => SaveUrl(url, VerifyLinksFileName));
+                count++;
+                Console.WriteLine("To: {0}", oMail.To.ToString());
+                if (!info.Read)
+                {
+                    await Task.Run(() => oClient.MarkAsRead(info, true));
+                }
+                return count;
+            }
+            catch (Exception e)
+            {
+                LogWithColor(e.ToString(), ConsoleColor.DarkRed);
+                throw;
             }
         }
 
@@ -737,9 +838,22 @@ namespace Verifier
         public static string GenerateWallet()
         {
             EthECKey key = EthECKey.GenerateKey();
-            byte[] privateKey = key.GetPrivateKeyAsBytes();
             string address = key.GetPublicAddress();
             return address;
+        }
+
+        public static List<string> GenerateWalletAndPrivateKeyAsync(int total)
+        {
+            List<string> value = new List<string>();
+            for (int i = 0; i < total; i++)
+            {
+
+                EthECKey key = EthECKey.GenerateKey();
+                string privateKey = key.GetPrivateKey();
+                string address = key.GetPublicAddress();
+                value.Add(address + ":" + privateKey);
+            }
+            return value;
         }
 
         public static string GenerateName(int len)

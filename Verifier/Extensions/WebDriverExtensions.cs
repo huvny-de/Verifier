@@ -2,7 +2,7 @@
 using OpenQA.Selenium.Support.UI;
 using System;
 
-namespace Verifier
+namespace Verifier.Extensions
 {
     public static class WebDriverExtensions
     {

@@ -47,7 +47,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -189,7 +189,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="WebDriverExtensions.cs" />
+    <Compile Include="Extensions\WebDriverExtensions.cs" />
     <Compile Include="InputModels\CoinTeleGraphIM.cs" />
     <Compile Include="Models\CustomConfigModel.cs" />
     <Compile Include="Models\Email.cs" />
@@ -198,7 +198,7 @@
     <Compile Include="Models\NewProxyModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TMAPIHelper.cs" />
+    <Compile Include="Extensions\TMAPIHelper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

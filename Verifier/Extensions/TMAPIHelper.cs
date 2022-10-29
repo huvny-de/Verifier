@@ -7,7 +7,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Verifier
+namespace Verifier.Extensions
 {
     public class TMAPIHelper
     {
@@ -44,7 +44,7 @@ namespace Verifier
             var typedTemp = new
             {
                 api_key = key,
-                sign = sign,
+                sign,
                 id_location = locationId
             };
 
