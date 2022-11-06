@@ -191,6 +191,7 @@
   <ItemGroup>
     <Compile Include="Extensions\WebDriverExtensions.cs" />
     <Compile Include="InputModels\CoinTeleGraphIM.cs" />
+    <Compile Include="Models\CheckRankModel.cs" />
     <Compile Include="Models\CustomConfigModel.cs" />
     <Compile Include="Models\Email.cs" />
     <Compile Include="Models\EmailConfiguration.cs" />

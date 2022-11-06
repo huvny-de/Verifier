@@ -903,6 +903,7 @@ namespace Verifier
 
         public static void TrackRank(List<string> listCode)
         {
+            var fileName = "RefCode_Rank_" + DateTime.Now.ToString("yyyy_MM_dd hh_mm_ss tt");
             try
             {
                 var url = "https://cointelegraph.com/historical?";
@@ -922,10 +923,14 @@ namespace Verifier
                         _webDriver.Navigate().Refresh();
                         Thread.Sleep(2000);
                         ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
+                        Thread.Sleep(2000);
                         List<IWebElement> eles = _webDriver.FindElements(By.CssSelector("#vl_popup.vlns.vl-new-version .vl-modal-dialog .vl-metric .vl-metric-value")).ToList();
-                        var rank = eles[0];
-                        var refCount = eles[1];
-                        Console.ReadLine();
+                        var rank = eles[0].Text;
+                        var refCount = eles[1].Text;
+                        var saveInfo = $"{code} {rank} {refCount}";
+                        LogWithColor(saveInfo, ConsoleColor.DarkGreen);
+                        SaveUrl(saveInfo, fileName);
+                        curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')"); ;
                     }
                 }
                 _webDriver.Dispose();
