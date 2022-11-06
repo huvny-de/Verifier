@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Verifier.Extensions;
+using System.Diagnostics;
 
 namespace Verifier
 {
@@ -40,6 +41,10 @@ namespace Verifier
         private static readonly int DF_NAMELENGTH = 5;
         public static readonly string FailedLinksFileName = "LinksFailed" + GetRandomEmail() + GenerateName(8);
         public static readonly string VerifyLinksFileName = "VerifyLinks";
+        public static int WorkShiftCount { get; set; }
+        public static double WorkPerSecond { get; set; }
+        public static DateTime EstimatedDoneTime { get; set; }
+
         public static UndetectedChromeDriver _undetectedDriver;
         public static IWebDriver _webDriver;
 
@@ -65,7 +70,7 @@ namespace Verifier
                     "5. Verify Link\n" +
                     "6. Auto Ref Multiples Link\n" +
                     "7. Exit\n" +
-                    "8. Reg new main acc" +
+                    "8. Reg new main acc\n" +
                     "9. Track Rank" +
                     "");
                 RunType = Convert.ToInt32(Console.ReadLine().Trim());
@@ -127,18 +132,18 @@ namespace Verifier
                         }
                         Console.WriteLine("Enter work time per link:");
                         int workPerLink = Convert.ToInt32(Console.ReadLine().Trim());
+                        int count2 = 1;
                         foreach (var link in allRefLink)
                         {
+                            LogWithColor($"Current Link Index: {count2}", ConsoleColor.DarkBlue);
                             if (link.Contains("https"))
                             {
-                                AutoRef(link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
+                                AutoRef(allRefLink.Length, startTime, link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
                             }
                             else
                             {
-                                AutoRef(RefPrefix + link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
+                                AutoRef(allRefLink.Length, startTime, RefPrefix + link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
                             }
-                            int count2 = 1;
-                            LogWithColor($"Current Link Index: {count2}", ConsoleColor.DarkBlue);
                             count2++;
                         }
                         LogRunTime(startTime);
@@ -168,13 +173,13 @@ namespace Verifier
             string[] allLinks = File.ReadAllLines(path);
             TotalVerSuccess = 0;
             TotalVerFailed = 0;
-            VerifyAllLink(allLinks, isReVer);
+            VerifyAllLink(startTime, allLinks, isReVer);
             LogWithColor($"Auto Verify Completed! Time: {DateTime.Now}\nTotal Verify Succeed: {TotalVerSuccess}", ConsoleColor.DarkGreen);
             LogWithColor($"Total Verify Failed: {TotalVerFailed}", ConsoleColor.DarkRed);
             LogRunTime(startTime);
         }
 
-        public static void VerifyAllLink(string[] linkList, bool reVer = false)
+        public static void VerifyAllLink(DateTime startTime, string[] linkList, bool reVer = false)
         {
             if (reVer)
             {
@@ -183,7 +188,11 @@ namespace Verifier
             Console.WriteLine($"Total {linkList.Length} links.");
             foreach (var url in linkList)
             {
+                Stopwatch st = new Stopwatch();
+                st.Start();
                 VerifyLink(url);
+                st.Stop();
+                DiagnosticPerfomance(linkList.Length, startTime, 1, st);
             }
         }
 
@@ -292,11 +301,13 @@ namespace Verifier
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
 
-        private static void AutoRef(string refLink, int workTimes, int driverType = 1)
+        private static void AutoRef(int totalShift, DateTime startTime, string refLink, int workTimes, int driverType = 1)
         {
             Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
             {
+                Stopwatch stopWatch = new Stopwatch();
+                stopWatch.Start();
                 var inputModel = new CoinTeleGraphIM()
                 {
                     Email = GetRandomEmail() + EmailPostfix,
@@ -313,9 +324,20 @@ namespace Verifier
                 {
                     InputEmailUndetecDriver(inputModel);
                 }
+                stopWatch.Stop();
+                DiagnosticPerfomance(totalShift, startTime, workTimes, stopWatch);
             }
             LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
             LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
+        }
+
+        private static void DiagnosticPerfomance(int totalShift, DateTime startTime, int workTimes, Stopwatch stopWatch)
+        {
+            TimeSpan ts = stopWatch.Elapsed;
+            WorkPerSecond = ts.TotalSeconds;
+            var totalWorkCost = WorkPerSecond * workTimes * totalShift;
+            EstimatedDoneTime = startTime.AddSeconds(totalWorkCost);
+            LogWithColor($"\nwps: {Math.Round(WorkPerSecond, 2)}/s | estimate done at: {EstimatedDoneTime}", ConsoleColor.DarkYellow);
         }
 
         private static void AutoRegisterMainAccount(string refLink, List<string> emailWalletList, int driverType = 1)
