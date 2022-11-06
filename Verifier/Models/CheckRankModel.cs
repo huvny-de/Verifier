@@ -11,7 +11,7 @@ namespace Verifier.Models
     {
         public string Code { get; set; }
         public string Rank { get; set; }
-        public string Ref { get; set; }
+        public int Ref { get; set; }
 
     }
 }

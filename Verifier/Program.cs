@@ -907,32 +907,60 @@ namespace Verifier
             try
             {
                 var url = "https://cointelegraph.com/historical?";
-                ChromeOptions options = new ChromeOptions();
-                options.BinaryLocation = ChromeLocationPath;
+                ChromeOptions options = new ChromeOptions
+                {
+                    BinaryLocation = ChromeLocationPath
+                };
                 _webDriver = new ChromeDriver(ChromeDriverLocationPath, options);
                 _webDriver.Navigate().GoToUrl(url);
                 Thread.Sleep(5000);
+                List<CheckRankModel> listChecked = new List<CheckRankModel>();
                 foreach (var codeLine in listCode)
                 {
                     string code = codeLine.Split(' ')[0];
-                    IJavaScriptExecutor js = (IJavaScriptExecutor)_webDriver;
-                    var curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')");
-                    while (curCode != code)
+                    if (!string.IsNullOrEmpty(code))
                     {
-                        js.ExecuteScript($"window.localStorage.setItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0', '{code}');");
-                        _webDriver.Navigate().Refresh();
-                        Thread.Sleep(2000);
-                        ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
-                        Thread.Sleep(2000);
-                        List<IWebElement> eles = _webDriver.FindElements(By.CssSelector("#vl_popup.vlns.vl-new-version .vl-modal-dialog .vl-metric .vl-metric-value")).ToList();
-                        var rank = eles[0].Text;
-                        var refCount = eles[1].Text;
-                        var saveInfo = $"{code} {rank} {refCount}";
-                        LogWithColor(saveInfo, ConsoleColor.DarkGreen);
-                        SaveUrl(saveInfo, fileName);
-                        curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')"); ;
+                        IJavaScriptExecutor js = (IJavaScriptExecutor)_webDriver;
+                        var curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')");
+                        var trackModel = new CheckRankModel();
+                        while (curCode != code)
+                        {
+                            try
+                            {
+                                js.ExecuteScript($"window.localStorage.setItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0', '{code}');");
+                                _webDriver.Navigate().Refresh();
+                                Thread.Sleep(2500);
+                                ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
+                                Thread.Sleep(2500);
+                                List<IWebElement> eles = _webDriver.FindElements(By.CssSelector("#vl_popup.vlns.vl-new-version .vl-modal-dialog .vl-metric .vl-metric-value")).ToList();
+                                var rank = eles[0].Text;
+                                var refCount = eles[1].Text;
+                                var rankNum = rank.Remove(0, 1);
+                                var saveInfo = $"{code} {rank} {refCount}";
+                                if (Convert.ToInt32(rankNum) <= 500)
+                                {
+                                    LogWithColor(saveInfo, ConsoleColor.DarkGreen);
+                                }
+                                else
+                                {
+                                    LogWithColor(saveInfo, ConsoleColor.DarkRed);
+                                }
+                                listChecked.Add(new CheckRankModel() { Code = code, Rank = rank, Ref = Convert.ToInt32(refCount) });
+                                curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')");
+                            }
+                            catch (Exception)
+                            {
+
+                                throw;
+                            }
+                        }
                     }
                 }
+                listChecked.Distinct().ToList().OrderByDescending(x => x.Ref).ToList().ForEach(item =>
+                {
+                    var saveInfo = $"{item.Code} {item.Rank} {item.Ref}";
+                    SaveUrl(saveInfo, fileName);
+                });
                 _webDriver.Dispose();
             }
             catch (Exception e)
