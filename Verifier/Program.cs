@@ -34,6 +34,9 @@ namespace Verifier
         public static int WaitLoadVerifyUrl { get; set; } = 0;
         public static string ApiKey { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
+        public static string RefSource = "&refSource=";
+        public static string[] RefSouceKey { get; } = { "copy", "twitter", "facebook", "reddit", "email" };
+        public static string RefPrefix = "https://cointelegraph.com/historical?referral=";
         private static readonly int DF_NAMELENGTH = 5;
         public static readonly string FailedLinksFileName = "LinksFailed" + GetRandomEmail() + GenerateName(8);
         public static readonly string VerifyLinksFileName = "VerifyLinks";
@@ -58,11 +61,12 @@ namespace Verifier
                     "1. Auto Ref And Verify\n" +
                     "2. Get Verify Link\n" +
                     "3. Verify All Link\n" +
-                    "4. Auto Ref\n" +
+                    "4. Auto Register Main Account\n" +
                     "5. Verify Link\n" +
                     "6. Auto Ref Multiples Link\n" +
                     "7. Exit\n" +
                     "8. Reg new main acc" +
+                    "9. Track Rank" +
                     "");
                 RunType = Convert.ToInt32(Console.ReadLine().Trim());
                 switch (RunType)
@@ -95,9 +99,12 @@ namespace Verifier
                     case 4:
                         Console.WriteLine("Enter Ref Link:");
                         string refLink = Console.ReadLine().Trim();
-                        Console.WriteLine("Enter Work Time:");
-                        int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
-                        AutoRef(refLink, workTimes);
+                        Console.WriteLine("Enter Email:Wallet List Path:");
+                        string emailWalletListPath = Console.ReadLine().Trim();
+                        string[] emailWalletList = File.ReadAllLines(emailWalletListPath);
+                        Console.WriteLine("WebDriver or Undetect?");
+                        int driverType = Convert.ToInt32(Console.ReadLine().Trim());
+                        AutoRegisterMainAccount(refLink, emailWalletList.ToList(), driverType);
                         LogRunTime(startTime);
                         break;
                     case 5:
@@ -112,6 +119,8 @@ namespace Verifier
                         Console.WriteLine("Enter RefLinkList Path:");
                         string refLinkListPath = Console.ReadLine().Trim();
                         string[] allRefLink = File.ReadAllLines(refLinkListPath);
+                        Console.WriteLine("WebDriver or Undetect?");
+                        int driverType2 = Convert.ToInt32(Console.ReadLine().Trim());
                         if (allRefLink.Length == 0)
                         {
                             LogWithColor("File empty", ConsoleColor.DarkRed);
@@ -120,10 +129,17 @@ namespace Verifier
                         int workPerLink = Convert.ToInt32(Console.ReadLine().Trim());
                         foreach (var link in allRefLink)
                         {
+                            if (link.Contains("https"))
+                            {
+                                AutoRef(link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
+                            }
+                            else
+                            {
+                                AutoRef(RefPrefix + link + RefSource + GetRandomRefSource(), workPerLink, driverType2);
+                            }
                             int count2 = 1;
                             LogWithColor($"Current Link Index: {count2}", ConsoleColor.DarkBlue);
                             count2++;
-                            AutoRef(link, workPerLink);
                         }
                         LogRunTime(startTime);
                         break;
@@ -133,6 +149,12 @@ namespace Verifier
                         List<string> values = GenerateWalletAndPrivateKeyAsync(number);
                         string p = CreateOrUpdateFile("walletAddress");
                         File.AppendAllLines(p, values);
+                        break;
+                    case 9:
+                        Console.WriteLine("Enter RefCode Path:");
+                        string refCodePath = Console.ReadLine().Trim();
+                        var refCodeList = File.ReadAllLines(refCodePath).ToList();
+                        TrackRank(refCodeList);
                         break;
                     default:
                         break;
@@ -203,6 +225,8 @@ namespace Verifier
         {
             Console.WriteLine("Enter Proxy Api:");
             ApiKey = Console.ReadLine().Trim();
+            Console.WriteLine("Enter Chrome Driver Path:");
+            ChromeDriverLocationPath = Console.ReadLine().Trim();
         }
 
         public static void ReadSettingFile()
@@ -268,7 +292,7 @@ namespace Verifier
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
 
-        private static void AutoRef(string refLink, int workTimes)
+        private static void AutoRef(string refLink, int workTimes, int driverType = 1)
         {
             Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
@@ -281,7 +305,41 @@ namespace Verifier
                     FirstName = GenerateName(DF_NAMELENGTH),
                     TargetUrl = refLink
                 };
-                InputEmailOriginDriver(inputModel);
+                if (driverType == 1)
+                {
+                    InputEmailOriginDriver(inputModel);
+                }
+                else
+                {
+                    InputEmailUndetecDriver(inputModel);
+                }
+            }
+            LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
+            LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
+        }
+
+        private static void AutoRegisterMainAccount(string refLink, List<string> emailWalletList, int driverType = 1)
+        {
+            Console.Write($"Verifier working on {DateTime.Now}");
+            foreach (var email in emailWalletList)
+            {
+                string[] info = email.Split(':');
+                var inputModel = new CoinTeleGraphIM()
+                {
+                    Email = info[0],
+                    LastName = GenerateName(DF_NAMELENGTH),
+                    Wallet = info[1],
+                    FirstName = GenerateName(DF_NAMELENGTH),
+                    TargetUrl = refLink
+                };
+                if (driverType == 1)
+                {
+                    InputEmailOriginDriver(inputModel);
+                }
+                else
+                {
+                    InputEmailUndetecDriver(inputModel);
+                }
             }
             LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
             LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
@@ -301,12 +359,20 @@ namespace Verifier
             return locationId;
         }
 
+        private static string GetRandomRefSource()
+        {
+            Random random = new Random();
+            int num = random.Next(0, RefSouceKey.Length);
+            string refSource = RefSouceKey[num];
+            return refSource;
+        }
+
         private static void MappingAppsetting(CustomConfigModel customConfig)
         {
             EmailPostfix = customConfig.EmailPostFix;
             Console.WriteLine("Email Postfix: " + EmailPostfix);
             ChromeLocationPath = customConfig.ChromeLocationPath;
-            ChromeDriverLocationPath = Directory.GetCurrentDirectory();
+            //  ChromeDriverLocationPath = Directory.GetCurrentDirectory();
         }
 
         private static void MappingConfig(CustomConfigModel customConfig)
@@ -831,6 +897,89 @@ namespace Verifier
                 if (_webDriver != null)
                 {
                     _webDriver.Dispose();
+                }
+            }
+        }
+
+        public static void TrackRank(List<string> listCode)
+        {
+            try
+            {
+                var url = "https://cointelegraph.com/historical?";
+                ChromeOptions options = new ChromeOptions();
+                options.BinaryLocation = ChromeLocationPath;
+                _webDriver = new ChromeDriver(ChromeDriverLocationPath, options);
+                _webDriver.Navigate().GoToUrl(url);
+                Thread.Sleep(5000);
+                foreach (var codeLine in listCode)
+                {
+                    string code = codeLine.Split(' ')[0];
+                    IJavaScriptExecutor js = (IJavaScriptExecutor)_webDriver;
+                    var curCode = (String)js.ExecuteScript("return localStorage.getItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0')");
+                    while (curCode != code)
+                    {
+                        js.ExecuteScript($"window.localStorage.setItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0', '{code}');");
+                        _webDriver.Navigate().Refresh();
+                        Thread.Sleep(2000);
+                        ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
+                        List<IWebElement> eles = _webDriver.FindElements(By.CssSelector("#vl_popup.vlns.vl-new-version .vl-modal-dialog .vl-metric .vl-metric-value")).ToList();
+                        var rank = eles[0];
+                        var refCount = eles[1];
+                        Console.ReadLine();
+                    }
+                }
+                _webDriver.Dispose();
+            }
+            catch (Exception e)
+            {
+                if (_webDriver != null)
+                {
+                    _webDriver.Dispose();
+                }
+            }
+        }
+
+        public static void InputEmailUndetecDriver(CoinTeleGraphIM inputModel)
+        {
+            try
+            {
+                Console.WriteLine($"Working on Email: {inputModel.Email} | Name: {inputModel.FirstName} | {inputModel.LastName}\nWallet: {inputModel.Wallet}\n");
+                var httpsProxy = GetHttpsProxy(ApiKey);
+                ChromeOptions options = new ChromeOptions();
+                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                options.BinaryLocation = ChromeLocationPath;
+                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath + @"\chromedriver.exe", browserExecutablePath: ChromeLocationPath);
+                _undetectedDriver.Navigate().GoToUrl(inputModel.TargetUrl);
+                Thread.Sleep(5000);
+                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("VL.openModal()");
+
+                Thread.Sleep(3000);
+                IWebElement firstNameEle = _undetectedDriver.FindElement(By.Id("form_firstName"));
+                firstNameEle.SendKeys(inputModel.FirstName);
+
+                IWebElement lastNameEle = _undetectedDriver.FindElement(By.Id("form_lastname"));
+                lastNameEle.SendKeys(inputModel.LastName);
+
+                IWebElement emailEle = _undetectedDriver.FindElement(By.Id("form_email"));
+                emailEle.SendKeys(inputModel.Email);
+
+                IWebElement ercWalletEle = _undetectedDriver.FindElement(By.Id("extraField_0"));
+                ercWalletEle.SendKeys(inputModel.Wallet);
+
+                IWebElement submitBtn = _undetectedDriver.FindElement(By.Id("vl_popup_submit"));
+                submitBtn.Click();
+                Thread.Sleep(1000);
+                TotalRefSuccess += 1;
+                _undetectedDriver.Dispose();
+            }
+            catch (Exception e)
+            {
+                LogWithColor(e.Message, ConsoleColor.DarkRed);
+                TotalRefFailed += 1;
+                LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
+                if (_undetectedDriver != null)
+                {
+                    _undetectedDriver.Dispose();
                 }
             }
         }
