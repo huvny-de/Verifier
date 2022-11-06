@@ -950,7 +950,6 @@ namespace Verifier
                             }
                             catch (Exception)
                             {
-
                                 throw;
                             }
                         }
