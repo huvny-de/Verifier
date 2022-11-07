@@ -42,7 +42,10 @@ namespace Verifier
         public static readonly string FailedLinksFileName = "LinksFailed" + GetRandomEmail() + GenerateName(8);
         public static readonly string VerifyLinksFileName = "VerifyLinks";
         public static int WorkShiftCount { get; set; }
-        public static double WorkPerSecond { get; set; }
+        public static int TotalRan { get; set; } = 0;
+        public static double WorkPerSecond { get; set; } = 0;
+        public static double TotalWPS { get; set; } = 0;
+
         public static DateTime EstimatedDoneTime { get; set; }
 
         public static UndetectedChromeDriver _undetectedDriver;
@@ -113,14 +116,17 @@ namespace Verifier
                         LogRunTime(startTime);
                         break;
                     case 5:
+                        startTime = DateTime.Now;
                         Console.WriteLine("Enter VerifyLink Path: ");
                         string path = Console.ReadLine().Trim();
                         VerifyAllSetup(startTime, path);
                         string pathFailed = CreateOrUpdateFile(FailedLinksFileName);
                         VerifyAllSetup(DateTime.Now, pathFailed, true);
                         File.Delete(pathFailed);
+                        ResetDiagnostic();
                         break;
                     case 6:
+                        startTime = DateTime.Now;
                         Console.WriteLine("Enter RefLinkList Path:");
                         string refLinkListPath = Console.ReadLine().Trim();
                         string[] allRefLink = File.ReadAllLines(refLinkListPath);
@@ -146,7 +152,12 @@ namespace Verifier
                             }
                             count2++;
                         }
+                        LogWithColor("----------------------------------------------------", ConsoleColor.DarkGreen);
+                        LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
+                        LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
                         LogRunTime(startTime);
+                        LogWithColor("----------------------------------------------------", ConsoleColor.DarkGreen);
+                        ResetDiagnostic();
                         break;
                     case 8:
                         Console.WriteLine("Enter number of wallet");
@@ -174,9 +185,11 @@ namespace Verifier
             TotalVerSuccess = 0;
             TotalVerFailed = 0;
             VerifyAllLink(startTime, allLinks, isReVer);
+            LogWithColor("----------------------------------------------------", ConsoleColor.DarkGreen);
             LogWithColor($"Auto Verify Completed! Time: {DateTime.Now}\nTotal Verify Succeed: {TotalVerSuccess}", ConsoleColor.DarkGreen);
             LogWithColor($"Total Verify Failed: {TotalVerFailed}", ConsoleColor.DarkRed);
             LogRunTime(startTime);
+            LogWithColor("----------------------------------------------------", ConsoleColor.DarkGreen);
         }
 
         public static void VerifyAllLink(DateTime startTime, string[] linkList, bool reVer = false)
@@ -186,12 +199,13 @@ namespace Verifier
                 Console.WriteLine($"Re-Verifing Failed Links");
             }
             Console.WriteLine($"Total {linkList.Length} links.");
-            foreach (var url in linkList)
+            for (int i = 0; i < linkList.Length; i++)
             {
                 Stopwatch st = new Stopwatch();
                 st.Start();
-                VerifyLink(url);
+                VerifyLink(linkList[i]);
                 st.Stop();
+                TotalRan++;
                 DiagnosticPerfomance(linkList.Length, startTime, 1, st);
             }
         }
@@ -303,7 +317,6 @@ namespace Verifier
 
         private static void AutoRef(int totalShift, DateTime startTime, string refLink, int workTimes, int driverType = 1)
         {
-            Console.Write($"Verifier working on {DateTime.Now}");
             for (int i = 0; i < workTimes; i++)
             {
                 Stopwatch stopWatch = new Stopwatch();
@@ -325,19 +338,26 @@ namespace Verifier
                     InputEmailUndetecDriver(inputModel);
                 }
                 stopWatch.Stop();
+                TotalRan++;
                 DiagnosticPerfomance(totalShift, startTime, workTimes, stopWatch);
             }
-            LogWithColor($"Auto Ref Completed! Time: {DateTime.Now}\nTotal Ref Succeed: {TotalRefSuccess}", ConsoleColor.DarkGreen);
-            LogWithColor($"Total Ref Failed: {TotalRefFailed}", ConsoleColor.DarkRed);
         }
 
         private static void DiagnosticPerfomance(int totalShift, DateTime startTime, int workTimes, Stopwatch stopWatch)
         {
             TimeSpan ts = stopWatch.Elapsed;
-            WorkPerSecond = ts.TotalSeconds;
+            TotalWPS += ts.TotalSeconds;
+            WorkPerSecond = TotalWPS / TotalRan;
             var totalWorkCost = WorkPerSecond * workTimes * totalShift;
             EstimatedDoneTime = startTime.AddSeconds(totalWorkCost);
             LogWithColor($"\nwps: {Math.Round(WorkPerSecond, 2)}/s | estimate done at: {EstimatedDoneTime}", ConsoleColor.DarkYellow);
+        }
+
+        private static void ResetDiagnostic()
+        {
+            TotalWPS = 0;
+            WorkPerSecond = 0;
+            TotalRan = 0;
         }
 
         private static void AutoRegisterMainAccount(string refLink, List<string> emailWalletList, int driverType = 1)
@@ -951,7 +971,7 @@ namespace Verifier
                             {
                                 js.ExecuteScript($"window.localStorage.setItem('vl_refCode_VSx8VFOsBXAmtdG2wyFoy380cp0', '{code}');");
                                 _webDriver.Navigate().Refresh();
-                                Thread.Sleep(2500);
+                                Thread.Sleep(3000);
                                 ((IJavaScriptExecutor)_webDriver).ExecuteScript("VL.openModal()");
                                 Thread.Sleep(2500);
                                 List<IWebElement> eles = _webDriver.FindElements(By.CssSelector("#vl_popup.vlns.vl-new-version .vl-modal-dialog .vl-metric .vl-metric-value")).ToList();
