@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Verifier.Extensions;
 using System.Diagnostics;
+using System.Text;
 
 namespace Verifier
 {
@@ -74,7 +75,9 @@ namespace Verifier
                     "6. Auto Ref Multiples Link\n" +
                     "7. Exit\n" +
                     "8. Reg new main acc\n" +
-                    "9. Track Rank" +
+                    "9. Track Rank\n" +
+                    "10. Gen Pattern Wallet\n" +
+                    "11. Gen Multi Pattern Wallet\n" +
                     "");
                 RunType = Convert.ToInt32(Console.ReadLine().Trim());
                 switch (RunType)
@@ -172,11 +175,92 @@ namespace Verifier
                         var refCodeList = File.ReadAllLines(refCodePath).ToList();
                         TrackRank(refCodeList);
                         break;
+                    case 10:
+                        var genStartTime = DateTime.Now;
+                        Console.WriteLine("Input number of postfix:");
+                        int numOfPost = Convert.ToInt32(Console.ReadLine().Trim());
+                        Console.WriteLine("Input number pattern:");
+                        string numberPattern = Console.ReadLine().Trim();
+                        while (!(numberPattern.Length == numOfPost))
+                        {
+                            Console.WriteLine("number pattern length must equal number of postfix:");
+                            numberPattern = Console.ReadLine().Trim();
+                        }
+                        GenPatternWallet(numOfPost, numberPattern);
+                        LogRunTime(genStartTime);
+                        break;
+                    case 11:
+                        var genMStartTime = DateTime.Now;
+                        Console.WriteLine("Enter  number of wallet:");
+                        int numOfGenWallet = Convert.ToInt32(Console.ReadLine().Trim());
+                        Console.WriteLine("Input number of postfix:");
+                        int numOfPostM = Convert.ToInt32(Console.ReadLine().Trim());
+                        Console.WriteLine("Input number pattern:");
+                        string numberPatternM = Console.ReadLine().Trim();
+                        List<string> takeWallet = new List<string>();
+                        while (!(numberPatternM.Length == numOfPostM))
+                        {
+                            Console.WriteLine("number pattern length must equal number of postfix:");
+                            numberPatternM = Console.ReadLine().Trim();
+                        }
+                        var stringB = new StringBuilder();
+                        while (takeWallet.Count < numOfGenWallet)
+                        {
+                            var notMatch = true;
+                            var privateKey = "";
+                            var address = "";
+                            int countGen = 1;
+                            double gps = 0;
+                            while (notMatch)
+                            {
+                                Stopwatch st = new Stopwatch();
+                                st.Start();
+                                (privateKey, address) = GenerateWalletAndPrivateKeyAsync();
+                                st.Stop();
+                                var totalMs = st.ElapsedMilliseconds;
+                                gps = 1000 / totalMs;
+                                var takePattern = address.Substring(address.Length - numOfPostM, numOfPostM);
+                                notMatch = !takePattern.Equals(numberPatternM);
+                                Console.WriteLine(countGen + " | " + gps + "wallet/s");
+                                countGen++;
+                            }
+                            string saveInfo = $"{address}|{privateKey}";
+                            takeWallet.Add(saveInfo);
+                        }
+                        string pathGen = CreateOrUpdateFile("GenMultiWallet");
+                        File.AppendAllLines(pathGen, takeWallet);
+                        LogRunTime(genMStartTime);
+                        break;
                     default:
                         break;
                 }
             } while (RunType != 7);
             return Task.CompletedTask;
+        }
+
+        private static void GenPatternWallet(int numOfPost, string numberPattern)
+        {
+            var notMatch = true;
+            var privateKey = "";
+            var address = "";
+            int countGen = 1;
+            double gps = 0;
+            while (notMatch)
+            {
+                Stopwatch st = new Stopwatch();
+                st.Start();
+                (privateKey, address) = GenerateWalletAndPrivateKeyAsync();
+                st.Stop();
+                var totalMs = st.ElapsedMilliseconds;
+                gps = 1000 / totalMs;
+                var takePattern = address.Substring(address.Length - numOfPost, numOfPost);
+                notMatch = !takePattern.Equals(numberPattern);
+                Console.WriteLine(countGen + " | " + gps + "wallet/s");
+                countGen++;
+            }
+            Console.WriteLine("Bingo");
+            string saveInfo = $"{address}|{privateKey}";
+            SaveUrl(saveInfo, address);
         }
 
         private static void VerifyAllSetup(DateTime startTime, string path, bool isReVer = false)
@@ -1077,6 +1161,14 @@ namespace Verifier
                 value.Add(address + ":" + privateKey);
             }
             return value;
+        }
+
+        public static (string, string) GenerateWalletAndPrivateKeyAsync()
+        {
+            EthECKey key = EthECKey.GenerateKey();
+            string privateKey = key.GetPrivateKey();
+            string address = key.GetPublicAddress();
+            return (privateKey, address);
         }
 
         public static string GenerateName(int len)
