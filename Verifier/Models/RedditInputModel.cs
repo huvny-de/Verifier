@@ -6,12 +6,10 @@ using System.Threading.Tasks;
 
 namespace Verifier.Models
 {
-    public class EmailConfiguration
+    public class RedditInputModel
     {
-        public string SmtpServer { get; set; }
         public string Email { get; set; }
+        public string Username { get; set; }
         public string Password { get; set; }
-        public int Port { get; set; }
-
     }
 }

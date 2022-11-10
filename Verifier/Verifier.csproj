@@ -37,7 +37,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug2\</OutputPath>
+    <OutputPath>bin\Reddit\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -194,9 +194,9 @@
     <Compile Include="Models\CheckRankModel.cs" />
     <Compile Include="Models\CustomConfigModel.cs" />
     <Compile Include="Models\Email.cs" />
-    <Compile Include="Models\EmailConfiguration.cs" />
     <Compile Include="Models\Data.cs" />
     <Compile Include="Models\NewProxyModel.cs" />
+    <Compile Include="Models\RedditInputModel.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Extensions\TMAPIHelper.cs" />

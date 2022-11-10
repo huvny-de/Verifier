@@ -8,9 +8,9 @@ namespace Verifier.Models
 {
     public class CustomConfigModel
     {
-        public string Email { get; set; }
-        public string AppPassword { get; set; }
+        public string VaultPassword { get; set; }
         public string EmailPostFix { get; set; }
         public string ChromeLocationPath { get; set; }
+        public string Wallet { get; set; }
     }
 }
