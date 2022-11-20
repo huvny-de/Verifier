@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Verifier.Extensions;
 using System.Text.RegularExpressions;
+using OpenQA.Selenium.DevTools.V105.DOM;
 
 namespace Verifier
 {
@@ -59,7 +60,8 @@ namespace Verifier
                     "1. Auto Ref\n" +
                     "2. Auto Transfer\n" +
                     "3. Create Reddit Account\n" +
-                    "4. Mint"
+                    "4. Mint\n" +
+                    "5. Ref rainbow"
                     );
                 runType = Convert.ToInt32(Console.ReadLine().Trim());
                 switch (runType)
@@ -80,8 +82,37 @@ namespace Verifier
                         await AutoMint();
                         LogRunTime(startTime);
                         break;
+                    case 5:
+                        Console.WriteLine("Enter ref link: ");
+                        var refRain = Console.ReadLine();
+                        Console.WriteLine("Enter Email List: ");
+                        var emailPath = Console.ReadLine();
+                        string[] emailList = File.ReadAllLines(emailPath);
+                        foreach (var email in emailList)
+                        {
+                            var acc = email.Split('|');
+                            await RefRainbow(acc, refRain);
+                        }
+                        break;
                 }
             } while (runType != 3);
+        }
+
+
+        public async Task RefRainbow(string[] account, string refLink)
+        {
+            string saveInfo = $"{account[0]}|{account[1]}";
+            Console.WriteLine($"Working on Username: {account[0]}\n");
+
+            _undetectedDriver = UndetectedChromeDriver.Create(driverExecutablePath: ChromeDriverLocationPath + @"\chromedriver.exe", browserExecutablePath: ChromeLocationPath);
+            _undetectedDriver.Navigate().GoToUrl(refLink);
+            Thread.Sleep(5000);
+
+            var emailEle = GetWebElementUntilSuccess(By.Id("email"));
+            emailEle.SendKeys(account[0]);
+            var submit = GetWebElementUntilSuccess(By.CssSelector(".framer-pdw0va"));
+            submit.Click();
+            SaveUrl(saveInfo, "Rainbow", "Ref");
         }
 
         public async Task AutoMint()
