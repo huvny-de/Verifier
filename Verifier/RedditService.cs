@@ -13,6 +13,8 @@ using System.Collections.Generic;
 using Verifier.Extensions;
 using System.Text.RegularExpressions;
 using OpenQA.Selenium.DevTools.V105.DOM;
+using Verifier.Serivces;
+using EAGetMail;
 
 namespace Verifier
 {
@@ -20,7 +22,7 @@ namespace Verifier
     {
         public static string ChromeLocationPath { get; set; }
         public static string ChromeDriverLocationPath { get; set; }
-        public static string VaultPassword { get; set; }
+        public static string HostEmailPassword { get; set; }
         public static string ApiKey { get; set; }
         public static string CaptChaApi { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
@@ -32,7 +34,7 @@ namespace Verifier
 
         public static readonly string FailedLinksFileName = "LinksFailed" + GetRandomEmail() + GenerateName(8);
 
-        public static string EmailPostfix { get; set; }
+        public static string HostEmail { get; set; }
         public static int DF_NameLength { get; } = 5;
         public static List<string> MintFail { get; set; } = new List<string>();
         public static List<string> LoginFail { get; set; } = new List<string>();
@@ -67,35 +69,56 @@ namespace Verifier
                 switch (runType)
                 {
                     case 1:
-                        await AutoRef();
+                        Console.WriteLine("Please input email file path");
+                        var filePath = Console.ReadLine();
+                        var emailList = File.ReadAllLines(filePath);
+                        LogWithColor($"Total {emailList.Length} emails", ConsoleColor.DarkBlue);
+
+                        foreach (var email in emailList)
+                        {
+                            await AutoRef(email);
+
+                        }
                         LogRunTime(startTime);
                         break;
                     case 2:
-                        await AutoTransfer();
-                        LogRunTime(startTime);
-                        break;
-                    case 3:
-                        await CreateAccounts();
-                        LogRunTime(startTime);
-                        break;
-                    case 4:
-                        await AutoMint();
-                        LogRunTime(startTime);
-                        break;
-                    case 5:
-                        Console.WriteLine("Enter ref link: ");
-                        var refRain = Console.ReadLine();
-                        Console.WriteLine("Enter Email List: ");
-                        var emailPath = Console.ReadLine();
-                        string[] emailList = File.ReadAllLines(emailPath);
-                        foreach (var email in emailList)
-                        {
-                            var acc = email.Split('|');
-                            await RefRainbow(acc, refRain);
-                        }
+
+
                         break;
                 }
             } while (runType != 3);
+        }
+
+
+        private Mail GetEmail()
+        {
+            try
+            {
+                var imap = new IMAPService();
+                var mailClient = imap.CreateClient(HostEmail, HostEmailPassword);
+                var mail = imap.GetEmail(mailClient, HostEmail);
+                if (mail == null)
+                {
+                    LogWithColor("Not found verify email", ConsoleColor.DarkRed);
+                    imap.Disconnect(mailClient);
+                    return null;
+                }
+                imap.Disconnect(mailClient);
+                return mail;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return null;
+            }
+        }
+
+        private string GetVerifyLink(string text)
+        {
+            int startIndex = text.IndexOf('(') + 1;
+            int endIndex = text.IndexOf(')', startIndex);
+            string link = text.Substring(startIndex, endIndex - startIndex);
+            return link;
         }
 
 
@@ -167,7 +190,7 @@ namespace Verifier
                 Thread.Sleep(1000);
 
                 IWebElement passwordEle = GetWebElementUntilSuccess(By.Id("loginPassword"));
-                passwordEle.SendKeys(VaultPassword);
+                passwordEle.SendKeys(HostEmailPassword);
                 Thread.Sleep(1000);
 
                 var maxLogin = 0;
@@ -256,11 +279,11 @@ namespace Verifier
                     Thread.Sleep(500);
 
                     IWebElement vaultPass = GetWebElementUntilSuccess(By.Id("passwordField"));
-                    vaultPass.SendKeys(VaultPassword);
+                    vaultPass.SendKeys(HostEmailPassword);
                     Thread.Sleep(200);
 
                     IWebElement vaultPassConfirm = GetWebElementUntilSuccess(By.Id("confirmationPasswordField"));
-                    vaultPassConfirm.SendKeys(VaultPassword);
+                    vaultPassConfirm.SendKeys(HostEmailPassword);
                     Thread.Sleep(200);
 
                     var secureBtn = GetWebElementUntilSuccess(By.CssSelector("._button_1wfm6_149._button_1wfm6_149"));
@@ -324,8 +347,8 @@ namespace Verifier
 
         public void GlobalAppInput()
         {
-            Console.WriteLine("Enter Proxy Api:");
-            ApiKey = Console.ReadLine().Trim();
+            //Console.WriteLine("Enter Proxy Api:");
+            //ApiKey = Console.ReadLine().Trim();
             Console.WriteLine("Enter Chrome Driver Path:");
             ChromeDriverLocationPath = Console.ReadLine().Trim();
         }
@@ -342,13 +365,13 @@ namespace Verifier
             }
             if (string.IsNullOrEmpty(rs))
             {
-                Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory().ToString()}");
+                Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory()}");
                 CreateSettingFile();
                 Console.ReadLine();
                 return;
             }
             var customConfig = JsonConvert.DeserializeObject<CustomConfigModel>(rs);
-            if (String.IsNullOrEmpty(customConfig.VaultPassword) | String.IsNullOrEmpty(customConfig.CaptChaApi) | String.IsNullOrEmpty(customConfig.Wallet) | String.IsNullOrEmpty(customConfig.EmailPostFix) | String.IsNullOrEmpty(customConfig.ChromeLocationPath))
+            if (String.IsNullOrEmpty(customConfig.HostEmail) | String.IsNullOrEmpty(customConfig.HostEmailPassword) | string.IsNullOrEmpty(customConfig.ChromeLocationPath))
             {
                 Console.WriteLine($"Please Input AppSetting!\nPath: {Directory.GetCurrentDirectory()}");
                 Console.ReadLine();
@@ -364,20 +387,19 @@ namespace Verifier
             File.WriteAllText(Directory.GetCurrentDirectory() + @"\AppSetting.json", json);
         }
 
-        public async Task AutoRef()
+        public async Task AutoRef(string info)
         {
-            Console.WriteLine("Enter Work Time:");
-            int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
-            for (int i = 0; i < workTimes; i++)
+            var spliter = info.Split('|');
+            var inputModel = new RedditInputModel()
             {
-                var inputModel = new RedditInputModel()
-                {
-                    Email = GetRandomEmail() + EmailPostfix,
-                    Password = VaultPassword,
-                    Username = GetRandomEmail() + GenerateName(DF_NameLength)
-                };
-                await InputEmailOriginDriver(inputModel);
-            }
+                Email = spliter.FirstOrDefault(),
+                Password = HostEmailPassword,
+                Username = GetRandomEmail() + GenerateName(DF_NameLength),
+                FirstName = GenerateName(DF_NameLength),
+                LastName = GenerateName(DF_NameLength),
+
+            };
+            await InputEmailOriginDriver(inputModel);
         }
 
         public async Task CreateAccounts()
@@ -391,8 +413,8 @@ namespace Verifier
             {
                 var inputModel = new RedditInputModel()
                 {
-                    Email = GetRandomEmail() + EmailPostfix,
-                    Password = VaultPassword,
+                    Email = GetRandomEmail() + HostEmail,
+                    Password = HostEmailPassword,
                     Username = GetRandomEmail() + GenerateName(DF_NameLength)
                 };
                 await CreateAccountDriver(inputModel, fileName, sleepTime);
@@ -435,7 +457,7 @@ namespace Verifier
                 Thread.Sleep(1000);
 
                 IWebElement passwordEle = GetWebElementUntilSuccess(By.Id("loginPassword"));
-                passwordEle.SendKeys(VaultPassword);
+                passwordEle.SendKeys(HostEmailPassword);
                 Thread.Sleep(1000);
 
                 var maxLogin = 0;
@@ -496,7 +518,7 @@ namespace Verifier
                     Thread.Sleep(200);
 
                     IWebElement passwordField = GetWebElementUntilSuccess(By.Id("passwordField"));
-                    passwordField.SendKeys(VaultPassword);
+                    passwordField.SendKeys(HostEmailPassword);
                     Thread.Sleep(200);
 
                     var transfer2 = GetWebElementsUntilSuccess(By.CssSelector("._button_koles_42"));
@@ -580,201 +602,84 @@ namespace Verifier
 
         public async Task InputEmailOriginDriver(RedditInputModel inputModel)
         {
-            var registerUrl = "https://www.reddit.com/register/";
+            var registerUrl = "https://niftys.com/";
             try
             {
                 Console.WriteLine($"Working on Email: {inputModel.Email} | Username: {inputModel.Username}\n");
-                var httpsProxy = GetNewProxyOnly(ApiKey);
+                // var httpsProxy = GetNewProxyOnly(ApiKey);
                 ChromeOptions options = new ChromeOptions();
-                options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                //options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                options.AddArguments("--disable-popup-blocking");
                 _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath + @"\chromedriver.exe", browserExecutablePath: ChromeLocationPath);
                 _undetectedDriver.Navigate().GoToUrl(registerUrl);
                 Thread.Sleep(5000);
 
-                IWebElement firstNameEle = GetWebElementUntilSuccess(By.Id("regEmail"));
-                firstNameEle.SendKeys(inputModel.Email);
-                Thread.Sleep(1000);
+                var loginbtn = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/div[2]/div[1]/div[4]/button[1]"));
+                loginbtn.Click();
 
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('.AnimatedForm__submitButton').forEach(x => {if(x.textContent == 'Continue'){ x.click();}})");
-                Thread.Sleep(1000);
+                var inputEmail = GetWebElementUntilSuccess(By.CssSelector("html > body > div:nth-of-type(4) > div > div > div > div:nth-of-type(2) > div > form > div > div > div > div:nth-of-type(3) > input"));
+                inputEmail.SendKeys(inputModel.Email);
 
-                var suggestUsername = GetWebElementsUntilSuccess(By.CssSelector(".Onboarding__usernameSuggestion"));
-                Thread.Sleep(200);
-                IWebElement regUsername = GetWebElementUntilSuccess(By.Id("regUsername"));
-                var takeUsername = suggestUsername[0].Text;
-                regUsername.SendKeys(takeUsername);
+                var loginBtnPopup = GetWebElementUntilSuccess(By.CssSelector("html > body > div:nth-of-type(4) > div > div > div > div:nth-of-type(2) > div > form > div:nth-of-type(2) > button"));
+                loginBtnPopup.Click();
 
-                IWebElement regPassword = GetWebElementUntilSuccess(By.Id("regPassword"));
-                regPassword.SendKeys(VaultPassword);
-                Thread.Sleep(4000);
-
-                CaptChaExtension captChaExtension = new CaptChaExtension();
-                TwoCaptcha.Models.TwoCaptcha token = await captChaExtension.ReCaptchaV2Async(CaptChaApi);
                 Thread.Sleep(5000);
 
-                IWebElement innerToken = GetWebElementUntilSuccess(By.CssSelector("g-recaptcha-response"));
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript($"document.getElementById('g-recaptcha-response').innerHTML='{token.Request}'");
-                // ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript($"document.getElementById('recaptcha-demo-form').submit()");
+                var mail = GetEmail();
+                var link = GetVerifyLink(mail?.TextBody);
 
-                Thread.Sleep(2000);
-                var submitBtn = GetWebElementsUntilSuccess(By.CssSelector(".AnimatedForm__submitButton"));
-                ClickUntilSuccess(submitBtn[1]);
-                Thread.Sleep(10000);
-
-                IWebElement skipBtn = GetWebElementUntilSuccess(By.CssSelector("._22ChQI9alXTuxk7yqwRt8l"));
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('._22ChQI9alXTuxk7yqwRt8l').forEach(x=>{if(x.textContent === 'Skip'){x.click();}})");
-                Thread.Sleep(1000);
-
-                var maxEmoji = 0;
-                List<IWebElement> emojiBtn = GetWebElementsUntilSuccess(By.CssSelector("._3miLvWoAksppOIKDbHmCpH ._3oCL2oMbe3H81mue3bR1CQ"));
-                while (emojiBtn.Count < 3 && maxEmoji < 3)
+                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("window.open();");
+                string currentWindowHandle = _undetectedDriver.CurrentWindowHandle;
+                string newWindowHandle = string.Empty;
+                foreach (string handle in _undetectedDriver.WindowHandles)
                 {
-                    emojiBtn = GetWebElementsUntilSuccess(By.CssSelector("._3miLvWoAksppOIKDbHmCpH ._3oCL2oMbe3H81mue3bR1CQ"));
-                    maxEmoji++;
+                    if (handle != currentWindowHandle)
+                    {
+                        newWindowHandle = handle;
+                        break;
+                    }
                 }
-                ClickUntilSuccess(emojiBtn[0]);
-                ClickUntilSuccess(emojiBtn[1]);
-                ClickUntilSuccess(emojiBtn[2]);
-
-
-                IWebElement continueBtn = GetWebElementUntilSuccess(By.CssSelector(".dK60vCQAai2JPR7mVZ4ir"));
-                ClickUntilSuccess(continueBtn);
-                Thread.Sleep(1000);
-
-
-                var fistJoin = GetWebElementsUntilSuccess(By.CssSelector("._2h_rraB53rhUmsB6cnedRY")).ToList();
-                while (fistJoin.Count < 2)
-                {
-                    fistJoin = GetWebElementsUntilSuccess(By.CssSelector("._2h_rraB53rhUmsB6cnedRY")).ToList();
-                }
-                ClickUntilSuccess(fistJoin[1]);
-                Thread.Sleep(100);
-                var continueBtn3 = GetWebElementUntilSuccess(By.CssSelector(".dK60vCQAai2JPR7mVZ4ir"));
-                ClickUntilSuccess(continueBtn3);
-                Thread.Sleep(5000);
-
-                IWebElement continue2 = GetWebElementUntilSuccess(By.CssSelector(".dK60vCQAai2JPR7mVZ4ir"));
-                ClickUntilSuccess(continue2);
+                _undetectedDriver.SwitchTo().Window(newWindowHandle);
+                _undetectedDriver.Navigate().GoToUrl(link);
                 Thread.Sleep(3000);
 
-                List<IWebElement> gotIt = GetWebElementsUntilSuccess(By.CssSelector("._34mIRHpFtnJ0Sk97S2Z3D9"));
-                while (gotIt.Count != 4)
-                {
-                    gotIt = GetWebElementsUntilSuccess(By.CssSelector("._34mIRHpFtnJ0Sk97S2Z3D9"));
-                }
-                ClickUntilSuccess(gotIt[3]);
-                Thread.Sleep(1000);
+                _undetectedDriver.Close();
+                _undetectedDriver.SwitchTo().Window(_undetectedDriver.WindowHandles.Last());
 
-                var maxDivEmail = 0;
-                IWebElement divEmail = GetWebElementUntilSuccess(By.CssSelector("._1AaXuuXcppN6z3lyjemnkL"));
-                while (divEmail == null && maxDivEmail < 3)
-                {
-                    divEmail = GetWebElementUntilSuccess(By.CssSelector("._1AaXuuXcppN6z3lyjemnkL"));
-                    maxDivEmail++;
-                }
-                 ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('._34mIRHpFtnJ0Sk97S2Z3D9').forEach(x=>{if(x.textContent === 'Got it'){x.click();}})");
-                Thread.Sleep(1000);
+                var nameInput = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[1]/div[1]/div[1]/div[3]/input[1]"));
+                nameInput.SendKeys(inputModel.FirstName + " " + inputModel.LastName);
 
-                //IWebElement xBtn = GetWebElementUntilSuccess(By.CssSelector("._1DK52RbaamLOWw5UPaht_S _199HcTqT2ANvw-1B0onPUa _1acwN_tUhJ8w-n7oCp-Aw3"));
-                //xBtn.Click();
+                var usernameInput = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[2]/div[1]/div[2]/div[1]/div[3]/input[1]"));
+                usernameInput.SendKeys(inputModel.Username);
 
-                IWebElement userDropdown = GetWebElementUntilSuccess(By.Id("USER_DROPDOWN_ID"));
-                ClickUntilSuccess(userDropdown);
+                var argreebtn = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[4]/div[1]/label[1]/div[1]"));
+                argreebtn.Click();
+
+                var letgoBtn = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[2]/button[1]"));
+                letgoBtn.Click();
+
+                string fileName = "niftys.txt";
+                var info = $"{inputModel.Email}|{inputModel.Username}";
+                SaveUrl(info, "niftys", fileName);
+
+                var gleamUrl = "https://gleam.io/2OdsZ/game-of-thrones-build-your-realm-allowlist-twitter-quiz";
+                _undetectedDriver.Navigate().GoToUrl(gleamUrl);
                 Thread.Sleep(2000);
 
-                IWebElement createAvtBtn = GetWebElementUntilSuccess(By.CssSelector("._6opQAE7SUXi-Fy7P3vItL._6opQAE7SUXi-Fy7P3vItL"));
-                ClickUntilSuccess(createAvtBtn);
-                Thread.Sleep(4000);
+
+                var gleamUserName = GetWebElementUntilSuccess(By.CssSelector("html > body > div > form > div > div:nth-of-type(2) > div > div > input"));
+                gleamUserName.SendKeys(inputModel.Username);
+
+                var emailAddress = GetWebElementUntilSuccess(By.CssSelector("html > body > div > form > div > div:nth-of-type(2) > div > div:nth-of-type(2) > input"));
+                emailAddress.SendKeys(inputModel.Email);
+
+                var submitBtn = GetWebElementUntilSuccess(By.CssSelector("html > body > div > form > div > div:nth-of-type(2) > div:nth-of-type(2) > div > input"));
+                submitBtn.Click();
 
 
-                var next = GetWebElementsUntilSuccess(By.CssSelector("._button_3pioz_15")).ToList();
-                while (next.Count != 6)
-                {
-                    next = GetWebElementsUntilSuccess(By.CssSelector("._button_3pioz_15")).ToList();
-                }
-                for (int i = 0; i < 14; i++)
-                {
-                    ClickUntilSuccess(next[0]);
-                    Thread.Sleep(200);
-                }
-
-                var randomFC = GetRandomFC();
-                var listFC = GetWebElementsUntilSuccess(By.CssSelector("._outfitImage_1trdi_30")).ToList();
-                while (listFC.Count != 33)
-                {
-                    listFC = GetWebElementsUntilSuccess(By.CssSelector("._outfitImage_1trdi_30")).ToList();
-                }
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript($"document.querySelectorAll('._outfitImage_1trdi_30')[{randomFC}].click()");
-                Thread.Sleep(2000);
-
-                var choseItemBtn = GetWebElementUntilSuccess(By.CssSelector("._button_koles_42"));
-                ClickUntilSuccess(choseItemBtn);
-                Thread.Sleep(500);
-
-                IWebElement vaultPass = GetWebElementUntilSuccess(By.Id("passwordField"));
-                vaultPass.SendKeys(VaultPassword);
-                Thread.Sleep(200);
-
-                IWebElement vaultPassConfirm = GetWebElementUntilSuccess(By.Id("confirmationPasswordField"));
-                vaultPassConfirm.SendKeys(VaultPassword);
-                Thread.Sleep(200);
-
-                var secureBtn = GetWebElementUntilSuccess(By.CssSelector("._button_1wfm6_149._button_1wfm6_149"));
-                ClickUntilSuccess(secureBtn);
-                Thread.Sleep(6000);
-
-                var maxDivTest = 0;
-                var divTest = GetWebElementUntilSuccess(By.CssSelector("._itemDescription_7kbcu_189"));
-                while (divTest == null && maxDivTest < 3)
-                {
-                    divTest = GetWebElementUntilSuccess(By.CssSelector("._itemDescription_7kbcu_189"));
-                    maxDivTest++;
-                }
-                var continue4 = GetWebElementUntilSuccess(By.CssSelector("._button_koles_42"));
-                while (continue4.Text != "Continue")
-                {
-                    continue4 = GetWebElementUntilSuccess(By.CssSelector("._button_koles_42"));
-                }
-                 ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('._button_koles_42').forEach(x=>{if(x.textContent === 'Continue'){x.click();}})");
-                Thread.Sleep(10000);
-
-                var fullItem = GetWebElementsUntilSuccess(By.CssSelector("._ctaButton_y0x52_1"));
-                while (fullItem == null)
-                {
-                    fullItem = GetWebElementsUntilSuccess(By.CssSelector("._ctaButton_y0x52_1"));
-                }
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('._ctaButton_y0x52_1').forEach(x=>{if(x.textContent === 'Get the Full Look'){x.click();}})");
-                Thread.Sleep(6000);
-                ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.querySelectorAll('._ctaButton_y0x52_1').forEach(x=>{if(x.textContent === 'Save'){x.click();}})");
-                Thread.Sleep(6000);
-
-                //var viewDetail = GetWebElementUntilSuccess(By.CssSelector("._sheet_eet7b_1._sectionDescription_eet7b_47._clickable_eet7b_70"));
-                //viewDetail.Click();
-                //Thread.Sleep(500);
-
-                //var transfer = GetWebElementsUntilSuccess(By.CssSelector("._productDetails_7kbcu_53._defaultButtonsContainer_7kbcu_182._ctaButton_7kbcu_140"));
-                //transfer[0].Click();
-                //Thread.Sleep(500);
-
-
-                //IWebElement toField = GetWebElementUntilSuccess(By.Id("toField"));
-                //toField.SendKeys(HostWallet);
-                //Thread.Sleep(200);
-
-                //IWebElement passwordField = GetWebElementUntilSuccess(By.Id("passwordField"));
-                //passwordField.SendKeys(VaultPassword);
-                //Thread.Sleep(200);
-
-                //var transfer2 = GetWebElementUntilSuccess(By.CssSelector("._blueTheme_koles_103"));
-                //transfer2.Click();
-
-                string info = $"{takeUsername}|{inputModel.Email}";
-                string fileName = "RegReddit.txt";
-                SaveUrl(info, "RedditMinted", fileName);
                 TotalRefSucceed += 1;
                 LogWithColor($"Total Ref Succeed: {TotalRefSucceed}", ConsoleColor.DarkGreen);
                 _undetectedDriver.Dispose();
-                Thread.Sleep(180000);
             }
             catch (Exception e)
             {
@@ -816,7 +721,7 @@ namespace Verifier
                 regUsername.SendKeys(takeUsername);
 
                 IWebElement regPassword = GetWebElementUntilSuccess(By.Id("regPassword"));
-                regPassword.SendKeys(VaultPassword);
+                regPassword.SendKeys(HostEmailPassword);
                 Thread.Sleep(4000);
 
                 CaptChaExtension captChaExtension = new CaptChaExtension();
@@ -971,15 +876,15 @@ namespace Verifier
 
         public void MappingAppsetting(CustomConfigModel customConfig)
         {
-            EmailPostfix = customConfig.EmailPostFix;
-            Console.WriteLine("Email Postfix: " + EmailPostfix);
-            VaultPassword = customConfig.VaultPassword;
-            Console.WriteLine("VaultPassword: " + VaultPassword);
-            HostWallet = customConfig.Wallet;
-            Console.WriteLine("HostWallet: " + HostWallet);
-            CaptChaApi = customConfig.CaptChaApi;
-            Console.WriteLine("CaptChaApi: " + CaptChaApi);
+            HostEmail = customConfig.HostEmail;
+            Console.WriteLine("Host Email: " + HostEmail);
+            HostEmailPassword = customConfig.HostEmailPassword;
+            Console.WriteLine("Host Email Password: " + HostEmailPassword);
             ChromeLocationPath = customConfig.ChromeLocationPath;
+            //HostWallet = customConfig.Wallet;
+            //Console.WriteLine("HostWallet: " + HostWallet);
+            //CaptChaApi = customConfig.CaptChaApi;
+            //Console.WriteLine("CaptChaApi: " + CaptChaApi);
         }
 
         public void DeleteFile(string fileName = "VerifyLinks")

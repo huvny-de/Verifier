@@ -8,10 +8,8 @@ namespace Verifier.Models
 {
     public class CustomConfigModel
     {
-        public string VaultPassword { get; set; }
-        public string EmailPostFix { get; set; }
         public string ChromeLocationPath { get; set; }
-        public string Wallet { get; set; }
-        public string CaptChaApi { get; set; }
+        public string HostEmail { get; set; }
+        public string HostEmailPassword { get; set; }
     }
 }
