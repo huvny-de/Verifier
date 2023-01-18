@@ -15,6 +15,8 @@ using System.Text.RegularExpressions;
 using OpenQA.Selenium.DevTools.V105.DOM;
 using Verifier.Serivces;
 using EAGetMail;
+using OpenQA.Selenium.DevTools.V105.Network;
+using Org.BouncyCastle.Crypto;
 
 namespace Verifier
 {
@@ -89,17 +91,25 @@ namespace Verifier
             } while (runType != 3);
         }
 
-
-        private Mail GetEmail()
+        private Mail GetEmail(string currentEmail, int timeout = 10)
         {
+            var imap = new IMAPService();
+            var mailClient = imap.CreateClient(HostEmail, HostEmailPassword);
+            mailClient.WaitNewEmail(2);
+            var mail = imap.GetEmail(mailClient, currentEmail);
             try
             {
-                var imap = new IMAPService();
-                var mailClient = imap.CreateClient(HostEmail, HostEmailPassword);
-                var mail = imap.GetEmail(mailClient, HostEmail);
+                int count = 0;
+                while (mail == null && count < timeout)
+                {
+                    LogWithColor($"waiting for new email {count + 1}", ConsoleColor.DarkBlue);
+                    mailClient.WaitNewEmail(2);
+                    mail = imap.GetEmail(mailClient, currentEmail);
+                    count++;
+                }
                 if (mail == null)
                 {
-                    LogWithColor("Not found verify email", ConsoleColor.DarkRed);
+                    LogWithColor("not found email", ConsoleColor.DarkYellow);
                     imap.Disconnect(mailClient);
                     return null;
                 }
@@ -109,15 +119,31 @@ namespace Verifier
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
+                imap.Disconnect(mailClient);
                 return null;
             }
         }
 
         private string GetVerifyLink(string text)
         {
-            int startIndex = text.IndexOf('(') + 1;
-            int endIndex = text.IndexOf(')', startIndex);
-            string link = text.Substring(startIndex, endIndex - startIndex);
+            string[] lines = text.Split('\n');
+
+            // Find the line that contains the link.
+            string linkLine = null;
+            foreach (string line in lines)
+            {
+                if (line.Contains("<https://auth.magic.link/confirm"))
+                {
+                    linkLine = line;
+                    break;
+                }
+            }
+
+            // Extract the link from the line.
+            int startIndex = linkLine.IndexOf('<') + 1;
+            int endIndex = linkLine.IndexOf('>', startIndex);
+            string link = linkLine.Substring(startIndex, endIndex - startIndex);
+
             return link;
         }
 
@@ -623,9 +649,9 @@ namespace Verifier
                 var loginBtnPopup = GetWebElementUntilSuccess(By.CssSelector("html > body > div:nth-of-type(4) > div > div > div > div:nth-of-type(2) > div > form > div:nth-of-type(2) > button"));
                 loginBtnPopup.Click();
 
-                Thread.Sleep(5000);
+                Thread.Sleep(3000);
 
-                var mail = GetEmail();
+                var mail = GetEmail(inputModel.Email);
                 var link = GetVerifyLink(mail?.TextBody);
 
                 ((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("window.open();");
@@ -646,7 +672,7 @@ namespace Verifier
                 _undetectedDriver.Close();
                 _undetectedDriver.SwitchTo().Window(_undetectedDriver.WindowHandles.Last());
 
-                var nameInput = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[1]/div[1]/div[1]/div[3]/input[1]"));
+                var nameInput = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[1]/div[1]/div[1]/div[3]/input[1]"), 30);
                 nameInput.SendKeys(inputModel.FirstName + " " + inputModel.LastName);
 
                 var usernameInput = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[1]/div[2]/div[1]/div[2]/div[1]/div[3]/input[1]"));
@@ -658,14 +684,15 @@ namespace Verifier
                 var letgoBtn = GetWebElementUntilSuccess(By.XPath("//*[@id=\"app_container\"]/div[2]/main[1]/div[1]/section[1]/div[2]/form[1]/div[2]/button[1]"));
                 letgoBtn.Click();
 
-                string fileName = "niftys.txt";
+                string fileName = "niftys";
                 var info = $"{inputModel.Email}|{inputModel.Username}";
                 SaveUrl(info, "niftys", fileName);
 
-                var gleamUrl = "https://gleam.io/2OdsZ/game-of-thrones-build-your-realm-allowlist-twitter-quiz";
-                _undetectedDriver.Navigate().GoToUrl(gleamUrl);
                 Thread.Sleep(2000);
 
+                var gleamUrl = "https://gleam.io/2OdsZ/game-of-thrones-build-your-realm-allowlist-twitter-quiz";
+                _undetectedDriver.Navigate().GoToUrl(gleamUrl);
+                Thread.Sleep(5000);
 
                 var gleamUserName = GetWebElementUntilSuccess(By.CssSelector("html > body > div > form > div > div:nth-of-type(2) > div > div > input"));
                 gleamUserName.SendKeys(inputModel.Username);
@@ -675,7 +702,6 @@ namespace Verifier
 
                 var submitBtn = GetWebElementUntilSuccess(By.CssSelector("html > body > div > form > div > div:nth-of-type(2) > div:nth-of-type(2) > div > input"));
                 submitBtn.Click();
-
 
                 TotalRefSucceed += 1;
                 LogWithColor($"Total Ref Succeed: {TotalRefSucceed}", ConsoleColor.DarkGreen);
@@ -690,7 +716,7 @@ namespace Verifier
                 {
                     _undetectedDriver.Dispose();
                 }
-                Thread.Sleep(180000);
+                Thread.Sleep(1000);
             }
         }
 

@@ -43,15 +43,10 @@ namespace Verifier.Serivces
                 foreach (MailInfo info in infos)
                 {
                     Mail mail = mailClient.GetMail(info);
-                    if (mail.TextBody.Contains(currentEmail))
+                    if (mail.TextBody.Contains(currentEmail) && !info.Read)
                     {
-                        Console.WriteLine("Subject: " + mail.Subject);
-                        Console.WriteLine("From: " + mail.From);
                         Console.WriteLine("Body: " + mail.TextBody);
-                        if (!info.Read)
-                        {
-                            mailClient.MarkAsRead(info, true);
-                        }
+                        mailClient.MarkAsRead(info, true);
                         return mail;
                     }
                 }
