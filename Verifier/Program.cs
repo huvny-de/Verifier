@@ -14,6 +14,8 @@ using Verifier.InputModels;
 using SeleniumUndetectedChromeDriver;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Verifier
 {
@@ -28,7 +30,7 @@ namespace Verifier
         public static string ApiKey { get; set; }
         public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
         private static readonly int DF_NAMELENGTH = 5;
-        public static UndetectedChromeDriver _driver;
+        public static UndetectedChromeDriver _undetectedDriver;
 
         public static void Main(string[] args)
         {
@@ -126,22 +128,13 @@ namespace Verifier
             Console.WriteLine("Enter Ref Link:");
             string refLink = Console.ReadLine().Trim();
 
-            Console.WriteLine("Enter Work Time:");
-            int workTimes = Convert.ToInt32(Console.ReadLine().Trim());
+            Console.WriteLine("enter email list path:");
+            string emailsPath = Console.ReadLine().Trim();
+            string[] emailList = File.ReadAllLines(emailsPath);
 
-            Console.Write($"Verifier working on {DateTime.Now}");
-            for (int i = 0; i < workTimes; i++)
+            foreach (var email in emailList)
             {
-                var inputModel = new CoinTeleGraphIM()
-                {
-                    Email = GetRandomEmail() + EmailPostfix,
-                    LastName = GenerateName(DF_NAMELENGTH),
-                    Wallet = GenerateWallet(),
-                    FirstName = GenerateName(DF_NAMELENGTH),
-                    TargetUrl = refLink
-                };
-                InputEmail(inputModel);
-                TrackAndReadEmail();
+                AutoInputC3(email.Split('|')[0], refLink);
             }
             Console.WriteLine($"AutoRefAndVerify Completed! Time: {DateTime.Now}");
         }
@@ -394,23 +387,23 @@ namespace Verifier
                 {
                     ChromeOptions options = new ChromeOptions();
                     options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-                    _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
-                    _driver.GoToUrl(url);
+                    _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                    _undetectedDriver.GoToUrl(url);
                     Thread.Sleep(14000);
                 }
                 catch (Exception e)
                 {
-                    if (_driver != null)
+                    if (_undetectedDriver != null)
                     {
-                        _driver.Dispose();
+                        _undetectedDriver.Dispose();
                     }
                     Console.WriteLine(e);
                 }
                 finally
                 {
-                    if (_driver != null)
+                    if (_undetectedDriver != null)
                     {
-                        _driver.Dispose();
+                        _undetectedDriver.Dispose();
                     }
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
@@ -422,9 +415,9 @@ namespace Verifier
         {
             try
             {
-                _driver.GoToUrl(url);
+                _undetectedDriver.GoToUrl(url);
                 Thread.Sleep(28000);
-                _driver.Dispose();
+                _undetectedDriver.Dispose();
             }
             catch (Exception e)
             {
@@ -432,9 +425,9 @@ namespace Verifier
             }
             finally
             {
-                if (_driver != null)
+                if (_undetectedDriver != null)
                 {
-                    _driver.Dispose();
+                    _undetectedDriver.Dispose();
                 }
                 GC.Collect();
                 GC.WaitForPendingFinalizers();
@@ -476,6 +469,107 @@ namespace Verifier
             return finalString;
         }
 
+        public static void AutoInputC3(string email, string refLink)
+        {
+            try
+            {
+                Console.WriteLine($"Working on Email: {email}\\n");
+                //  var httpsProxy = GetHttpsProxy(ApiKey);
+                ChromeOptions options = new ChromeOptions();
+                // options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
+                _undetectedDriver = UndetectedChromeDriver.Create(/*options: options,*/ driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _undetectedDriver.Navigate().GoToUrl(refLink);
+                Thread.Sleep(2500);
+
+                var connectionWalletBtn = GetWebElementUntilSuccess(By.XPath("//*[@id=\"root\"]/div[1]/div[2]/div[1]/div[3]/div[1]/div[2]/button[1]/span[1]"));
+                connectionWalletBtn.Click();
+                Thread.Sleep(1000);
+                var eth = GetWebElementUntilSuccess(By.Id("survey_question_multi_113112_0"));
+                eth.Click();
+                Thread.Sleep(1000);
+                var emailTxt = GetWebElementUntilSuccess(By.Id("tester_profile_email"));
+                emailTxt.SendKeys(email);
+                Thread.Sleep(1000);
+
+                //var eth = GetWebElementUntilSuccess(By.Id("survey_question_multi_113112_0"));
+                //eth.Click();
+                //var emailTxt = GetWebElementUntilSuccess(By.Id("tester_profile_email"));
+                //emailTxt.SendKeys(email);
+                //var submit = GetWebElementUntilSuccess(By.Id("tester_submit"));
+                //submit.Click();
+                //((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.getElementById('survey_question_multi_113112_0').click();");
+                //var qr = "document.getElementById('tester_profile_email').value = $'{email}'";
+                //((IJavaScriptExecutor)_undetectedDriver).ExecuteScript(qr);
+                //((IJavaScriptExecutor)_undetectedDriver).ExecuteScript("document.getElementById('tester_submit').click();");
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+            finally
+            {
+                if (_undetectedDriver != null)
+                {
+                    _undetectedDriver.Dispose();
+                }
+            }
+        }
+
+        public static IWebElement GetWebElement(By by)
+        {
+            try
+            {
+                return _undetectedDriver.FindElement(by);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static IWebElement GetWebElementUntilSuccess(By by, int maxWork = 10)
+        {
+            var workTime = 0;
+            var ele = GetWebElement(by);
+            while (ele == null && workTime < maxWork)
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine($"Trying get element {workTime + 1}");
+                ele = GetWebElement(by);
+                workTime++;
+            }
+            return ele;
+        }
+
+        public static List<IWebElement> GetWebElementsUntilSuccess(By by)
+        {
+            var maxTime = 0;
+            var ele = GetWebElements(by);
+            while (ele == null && maxTime < 10)
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine($"Trying get list element {maxTime + 1}");
+                ele = GetWebElements(by);
+                maxTime++;
+            }
+            return ele;
+        }
+
+
+        public static List<IWebElement> GetWebElements(By by)
+        {
+            try
+            {
+                return _undetectedDriver.FindElements(by).ToList();
+
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
         public static void InputEmail(CoinTeleGraphIM inputModel)
         {
             try
@@ -484,39 +578,39 @@ namespace Verifier
                 var httpsProxy = GetHttpsProxy(ApiKey);
                 ChromeOptions options = new ChromeOptions();
                 options.AddArguments("--proxy-server=" + $"{httpsProxy[0]}" + ":" + $"{httpsProxy[1]}");
-                _driver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
+                _undetectedDriver = UndetectedChromeDriver.Create(options: options, driverExecutablePath: ChromeDriverLocationPath, browserExecutablePath: ChromeLocationPath);
 
-                _driver.Navigate().GoToUrl(inputModel.TargetUrl);
+                _undetectedDriver.Navigate().GoToUrl(inputModel.TargetUrl);
                 Thread.Sleep(2500);
 
-                IWebElement ele = _driver.FindElementWait(By.ClassName("intro-content-buttons-item-text"), 10);
+                IWebElement ele = _undetectedDriver.FindElementWait(By.ClassName("intro-content-buttons-item-text"), 10);
                 ele.Click();
-                IWebElement firstNameEle = _driver.FindElementWait(By.Id("form_firstName"), 10);
+                IWebElement firstNameEle = _undetectedDriver.FindElementWait(By.Id("form_firstName"), 10);
                 firstNameEle.SendKeys(inputModel.FirstName);
                 Thread.Sleep(200);
 
-                IWebElement lastNameEle = _driver.FindElement(By.Id("form_lastname"));
+                IWebElement lastNameEle = _undetectedDriver.FindElement(By.Id("form_lastname"));
                 lastNameEle.SendKeys(inputModel.LastName);
                 Thread.Sleep(200);
 
-                IWebElement emailEle = _driver.FindElement(By.Id("form_email"));
+                IWebElement emailEle = _undetectedDriver.FindElement(By.Id("form_email"));
                 emailEle.SendKeys(inputModel.Email);
                 Thread.Sleep(200);
 
-                IWebElement ercWalletEle = _driver.FindElement(By.Id("extraField_0"));
+                IWebElement ercWalletEle = _undetectedDriver.FindElement(By.Id("extraField_0"));
                 ercWalletEle.SendKeys(inputModel.Wallet);
                 Thread.Sleep(200);
 
-                IWebElement submitBtn = _driver.FindElement(By.Id("vl_popup_submit"));
+                IWebElement submitBtn = _undetectedDriver.FindElement(By.Id("vl_popup_submit"));
                 submitBtn.Click();
                 Thread.Sleep(2000);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
-                if (_driver != null)
+                if (_undetectedDriver != null)
                 {
-                    _driver.Dispose();
+                    _undetectedDriver.Dispose();
                 }
             }
         }
