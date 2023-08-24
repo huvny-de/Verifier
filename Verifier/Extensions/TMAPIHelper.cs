@@ -1,17 +1,18 @@
 ﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Verifier.Models;
 
 namespace Verifier.Extensions
 {
-    public class TMAPIHelper
+    public static class TMAPIHelper
     {
         static string url = "https://tmproxy.com/api/proxy";
+        public static int[] LocationArr { get; } = { 1, 4, 5, 7, 8, 10, 11 };
+
 
         public static string Stats(string key)
         {
@@ -78,6 +79,60 @@ namespace Verifier.Extensions
                 }
             }
             return response;
+        }
+
+        public static NewProxyModel GetProxyModel(string apiKey)
+        {
+            var locationId = GetRandomlocation();
+            var proxy = TMAPIHelper.GetNewProxy(apiKey, apiKey, locationId);
+            NewProxyModel proxyModel = JsonConvert.DeserializeObject<NewProxyModel>(proxy);
+            return proxyModel;
+        }
+
+        public static string[] GetNewProxyOnly(string apiKey)
+        {
+            string[] httpsProxy;
+            NewProxyModel proxyModel = GetProxyModel(apiKey);
+            while (!(proxyModel.code == 0))
+            {
+                Thread.Sleep(1000);
+                proxyModel = GetProxyModel(apiKey);
+            }
+            httpsProxy = proxyModel.data.https.Split(':');
+            return httpsProxy;
+        }
+
+        private static int GetRandomlocation()
+        {
+            Random random = new Random();
+            int locationId = random.Next(0, LocationArr.Length);
+            return locationId;
+        }
+
+        public static string[] GetHttpsProxy(string apiKey)
+        {
+            string[] httpsProxy;
+            NewProxyModel proxyModel = GetProxyModel(apiKey);
+            if (proxyModel.code == 0 && proxyModel.data.next_request > 0)
+            {
+                httpsProxy = proxyModel.data.https.Split(':');
+                return httpsProxy;
+            }
+            proxyModel = GetProxyModel(apiKey);
+            while (!(proxyModel.code == 0))
+            {
+                Thread.Sleep(1000);
+                proxyModel = GetProxyModel(apiKey);
+            }
+            httpsProxy = proxyModel.data.https.Split(':');
+            return httpsProxy;
+        }
+
+        public static NewProxyModel GetCurrentProxyModel(string apiKey)
+        {
+            var proxy = GetCurrentProxy(apiKey);
+            NewProxyModel proxyModel = JsonConvert.DeserializeObject<NewProxyModel>(proxy);
+            return proxyModel;
         }
     }
 }
