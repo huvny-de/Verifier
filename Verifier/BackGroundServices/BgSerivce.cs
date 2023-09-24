@@ -23,10 +23,11 @@ namespace Verifier
             {
                 try
                 {
-                    await CallRedditService();
+                    CallRedditService();
                 }
-                catch
+                catch (Exception e)
                 {
+                    throw;
                 }
                 finally
                 {
@@ -34,12 +35,20 @@ namespace Verifier
                 }
             }
         }
-        private async Task CallRedditService()
+        private void CallRedditService()
         {
+            try
+            {
+                var scope = _services.CreateScope();
+                var rdSerivce = scope.ServiceProvider.GetRequiredService<RedditService>();
+                rdSerivce.StartSerivce();
+            }
+            catch (System.IO.IOException ex)
+            {
+                Console.WriteLine("An IOException occurred: " + ex.Message);
+                // Handle the exception or take appropriate actions
+            }
 
-            var scope = _services.CreateScope();
-            var rdSerivce = scope.ServiceProvider.GetRequiredService<RedditService>();
-            await rdSerivce.StartSerivce();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using OpenQA.Selenium;
+using OpenQA.Selenium.Chrome;
 using SeleniumUndetectedChromeDriver;
 using System;
 using System.Collections.Generic;
@@ -49,6 +50,59 @@ namespace Verifier.Extensions
         }
 
         public static List<IWebElement> GetWebElementsUntilSuccess(this UndetectedChromeDriver undetectedDriver, By by)
+        {
+            var maxTime = 0;
+            var ele = undetectedDriver.GetWebElements(by);
+            while (ele == null && maxTime < 10)
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine($"Trying get list element {maxTime + 1}");
+                ele = undetectedDriver.GetWebElements(by);
+                maxTime++;
+            }
+            return ele;
+        }
+
+        public static IWebElement GetWebElement(this ChromeDriver undetectedDriver, By by)
+        {
+            try
+            {
+                return undetectedDriver.FindElement(by);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static IWebElement GetWebElementUntilSuccess(this ChromeDriver undetectedDriver, By by, int maxWork = 10)
+        {
+            var workTime = 0;
+            var ele = undetectedDriver.GetWebElement(by);
+            while (ele == null && workTime < maxWork)
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine($"Trying get element {workTime + 1}");
+                ele = undetectedDriver.GetWebElement(by);
+                workTime++;
+            }
+            return ele;
+        }
+
+        public static List<IWebElement> GetWebElements(this ChromeDriver undetectedDriver, By by)
+        {
+            try
+            {
+                return undetectedDriver.FindElements(by).ToList();
+
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        public static List<IWebElement> GetWebElementsUntilSuccess(this ChromeDriver undetectedDriver, By by)
         {
             var maxTime = 0;
             var ele = undetectedDriver.GetWebElements(by);

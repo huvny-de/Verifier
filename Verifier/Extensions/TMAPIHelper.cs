@@ -89,7 +89,7 @@ namespace Verifier.Extensions
             return proxyModel;
         }
 
-        public static string[] GetNewProxyOnly(string apiKey)
+        public static string[] GetNewProxyOnly(this string apiKey)
         {
             string[] httpsProxy;
             NewProxyModel proxyModel = GetProxyModel(apiKey);
