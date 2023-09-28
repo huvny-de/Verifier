@@ -188,6 +188,8 @@ namespace Verifier
                 Thread.Sleep(2000);
                 var titleEle = _undetectedDriver.GetWebElementUntilSuccess(By.XPath("//*[@id=\"main\"]/div[1]/div[2]/div[1]/div[1]/div[1]/div[1]/section[1]/section[2]/div[1]/div[1]/span[1]"));
                 var title = titleEle.Text;
+                TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
+                title = textInfo.ToTitleCase(title);
 
                 string folderPath = Path.Combine(Environment.CurrentDirectory, title);
 
@@ -234,21 +236,18 @@ namespace Verifier
                             }
                         }
                     }
+                    imageCount++;
                 }
 
                 var descriptionEle = _undetectedDriver.GetWebElementUntilSuccess(By.ClassName("irIKAp"));
                 var description = descriptionEle.Text;
-                TextInfo textInfo = new CultureInfo("en-US", false).TextInfo;
-                title = textInfo.ToTitleCase(title);
+
                 description = textInfo.ToTitleCase(description);
 
-                string txtFileName = "title_description.txt";
+                string txtFileName = "description.txt";
                 string txtPath = Path.Combine(folderPath, txtFileName);
                 using (StreamWriter writer = new StreamWriter(txtPath))
                 {
-                    // Write title
-                    writer.WriteLine(title);
-                    writer.WriteLine("-------------");
                     writer.WriteLine(description);
                 }
 
